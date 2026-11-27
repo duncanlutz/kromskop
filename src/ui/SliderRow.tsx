@@ -17,10 +17,12 @@ interface SliderRowProps {
 
 /** Pointer travel within this distance of the thumb drags it without a jump. */
 const GRAB_RADIUS = 6;
+/** A press has to travel this far before it counts as a drag. */
+const DRAG_SLOP = 2;
 
 export function SliderRow({ def, value, parentValue, onChange, swatch, agentMark, disabled = false }: SliderRowProps) {
   const track = useRef<HTMLDivElement>(null);
-  const drag = useRef<{ lastX: number; position: number } | null>(null);
+  const drag = useRef<{ startX: number; lastX: number; position: number; moving: boolean } | null>(null);
   const [dragging, setDragging] = useState(false);
   const [draft, setDraft] = useState<string | null>(null);
   /** Set when Escape or Return has already dealt with the draft, so the blur that follows does not commit it. */
@@ -40,7 +42,12 @@ export function SliderRow({ def, value, parentValue, onChange, swatch, agentMark
     if (!disabled && parentValue !== null) set(parentValue);
   };
 
-  /* Dragging. A press on the track jumps there; Alt slows the drag to a quarter. */
+  /*
+   * Dragging. A press away from the thumb brings the value to the pointer,
+   * but only once the pointer moves: a press alone changes nothing, so a
+   * double-click can reset without first moving the value, and a stray click
+   * cannot start a new version. Alt slows the drag to a quarter.
+   */
 
   const onPointerDown = (event: PointerEvent<HTMLDivElement>) => {
     if (disabled || event.button !== 0 || !track.current) return;
@@ -48,20 +55,24 @@ export function SliderRow({ def, value, parentValue, onChange, swatch, agentMark
     const pressed = (event.clientX - rect.left) / rect.width;
     const onThumb = Math.abs(event.clientX - (rect.left + position * rect.width)) <= GRAB_RADIUS;
     const start = onThumb ? position : Math.min(1, Math.max(0, pressed));
-    drag.current = { lastX: event.clientX, position: start };
+    drag.current = { startX: event.clientX, lastX: event.clientX, position: start, moving: false };
     track.current.setPointerCapture(event.pointerId);
     track.current.focus({ preventScroll: true });
-    setDragging(true);
-    if (!onThumb) set(fromPosition(def, start));
   };
 
   const onPointerMove = (event: PointerEvent<HTMLDivElement>) => {
-    if (!drag.current || !track.current) return;
+    const held = drag.current;
+    if (!held || !track.current) return;
+    if (!held.moving) {
+      if (Math.abs(event.clientX - held.startX) < DRAG_SLOP) return;
+      held.moving = true;
+      setDragging(true);
+    }
     const width = track.current.getBoundingClientRect().width;
-    const travel = (event.clientX - drag.current.lastX) / width;
-    drag.current.lastX = event.clientX;
-    drag.current.position = Math.min(1, Math.max(0, drag.current.position + travel * (event.altKey ? 0.25 : 1)));
-    set(fromPosition(def, drag.current.position));
+    const travel = (event.clientX - held.lastX) / width;
+    held.lastX = event.clientX;
+    held.position = Math.min(1, Math.max(0, held.position + travel * (event.altKey ? 0.25 : 1)));
+    set(fromPosition(def, held.position));
   };
 
   const endDrag = () => {
