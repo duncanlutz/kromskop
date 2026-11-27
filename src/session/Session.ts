@@ -70,6 +70,8 @@ export interface Session {
   selectPhoto(photoId: string): void;
   selectVersion(versionId: string): void;
   togglePick(versionId: string): void;
+  /** Takes a version of the current photo out of the comparison, or puts it back. */
+  setDropped(versionId: string, dropped: boolean): void;
   /**
    * A person moves a slider. Versions are immutable, so the first change to
    * a version that is not their own working copy starts a new one.

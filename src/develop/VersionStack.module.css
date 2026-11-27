@@ -143,18 +143,26 @@
   padding-right: 48px;
 }
 
-.row[data-comparing="out"] .name,
-.row[data-comparing="out"] .rationale,
-.row[data-comparing="out"] .tile {
+.row:is([data-comparing="out"], [data-comparing="dropped"]) :is(.name, .rationale, .tile) {
   color: var(--text-tertiary);
 }
 
-.row[data-comparing="out"] .author[data-agent] {
+.row:is([data-comparing="out"], [data-comparing="dropped"]) .author[data-agent] {
   color: var(--text-tertiary);
 }
 
-.row[data-comparing="out"] .tile {
+.row:is([data-comparing="out"], [data-comparing="dropped"]) .tile {
   box-shadow: inset 0 0 0 1px var(--hairline);
+}
+
+/* Dropped on purpose, which is different from never having been added. */
+.dropped {
+  color: var(--text-secondary);
+}
+
+.row[data-comparing="dropped"] .name {
+  text-decoration: line-through;
+  text-decoration-color: var(--text-tertiary);
 }
 
 .compare {
@@ -174,7 +182,7 @@
   color: var(--text-primary);
 }
 
-.row[data-comparing="out"] .compare {
+.row:is([data-comparing="out"], [data-comparing="dropped"]) .compare {
   color: var(--text-secondary);
   box-shadow: inset 0 0 0 1px var(--hairline-strong);
 }

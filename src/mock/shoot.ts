@@ -99,6 +99,7 @@ function buildPhoto(spec: PhotoSpec): Photo {
     capture: spec.capture,
     versions,
     pickId: spec.pick ? idOf(spec.pick) : null,
+    droppedIds: [],
   };
 }
 
@@ -344,7 +345,8 @@ export function withVersionCount(photo: Photo, count: number): Photo {
     });
   }
   const pickId = versions.some((v) => v.id === photo.pickId) ? photo.pickId : null;
-  return { ...photo, versions, pickId };
+  const droppedIds = photo.droppedIds.filter((id) => versions.some((v) => v.id === id));
+  return { ...photo, versions, pickId, droppedIds };
 }
 
 /** Notes already on the first photo, one in each state. */

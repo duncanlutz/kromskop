@@ -45,6 +45,11 @@ export interface Photo {
   versions: Version[];
   /** The version the person picked, if any. */
   pickId: string | null;
+  /**
+   * Versions the person dropped from the comparison, oldest first. They are
+   * not deleted, and they stay out until the person restores them.
+   */
+  droppedIds: readonly string[];
 }
 
 export interface Shoot {

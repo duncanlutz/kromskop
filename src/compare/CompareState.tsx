@@ -42,6 +42,8 @@ interface CompareState {
   /** Versions in the comparison, in the order of their tiles. */
   compared: Version[];
   isCompared(versionId: string): boolean;
+  /** True for a version the person dropped, as opposed to one never added. */
+  isDropped(versionId: string): boolean;
   /** Adds a version to the comparison or takes it out. Nothing is deleted. */
   toggleCompared(versionId: string): void;
   dropFocused(): void;
@@ -121,19 +123,23 @@ export function useCompareView(): CompareView {
   return view;
 }
 
+/**
+ * What this screen remembers about a photo. Which versions were dropped is
+ * not here: that belongs to the photo and comes from the session.
+ */
 interface PhotoChoices {
-  dropped: string[];
+  /** The original stays out until asked for: versions are what is being judged. */
+  withOriginal: boolean;
   againstId: string | null;
   referenceId: string | null;
 }
 
-/** The original stays out until asked for: versions are what is being judged. */
-const DEFAULT_CHOICES: PhotoChoices = { dropped: [ORIGINAL_ID], againstId: null, referenceId: null };
+const DEFAULT_CHOICES: PhotoChoices = { withOriginal: false, againstId: null, referenceId: null };
 
 function comparedVersions(photo: Photo | null, choices: PhotoChoices, focusId: string | undefined): Version[] {
   if (!photo) return [];
-  const lettered = photo.versions.filter((v) => v.letter && !choices.dropped.includes(v.id));
-  const original = photo.versions.filter((v) => !v.letter && !choices.dropped.includes(v.id));
+  const lettered = photo.versions.filter((v) => v.letter && !photo.droppedIds.includes(v.id));
+  const original = choices.withOriginal ? photo.versions.filter((v) => !v.letter) : [];
   const all = [...lettered, ...original];
   // More than six cannot be judged at once: the oldest give way, never the pick or the focus.
   while (all.length > MAX_COMPARED) {
@@ -145,7 +151,7 @@ function comparedVersions(photo: Photo | null, choices: PhotoChoices, focusId: s
 
 export function CompareProvider({ children }: { children: ReactNode }) {
   const session = useSession();
-  const { photo, version, selectVersion, agentView } = session;
+  const { photo, version, selectVersion, setDropped, agentView } = session;
   const photoId = photo?.id ?? "";
   // Compare's rules about focus apply only while Compare is on screen.
   const active = useView().view === "compare";
@@ -204,17 +210,26 @@ export function CompareProvider({ children }: { children: ReactNode }) {
     );
   }, [compared, focus, reference, choices.againstId, photo?.pickId]);
 
+  /** Puts a version among the tiles, whether it was dropped or never added. */
+  const include = useCallback(
+    (versionId: string) => {
+      if (versionId === ORIGINAL_ID) setChoices((c) => (c.withOriginal ? c : { ...c, withOriginal: true }));
+      else setDropped(versionId, false);
+    },
+    [setChoices, setDropped],
+  );
+
   const focusVersion = useCallback(
     (versionId: string) => {
-      if (versionId === version?.id) return;
+      if (versionId === version?.id && compared.some((v) => v.id === versionId)) return;
       // The version just left becomes the other half of the pair.
-      if (version && compared.some((v) => v.id === version.id)) {
+      if (version && version.id !== versionId && compared.some((v) => v.id === version.id)) {
         setChoices((c) => ({ ...c, againstId: version.id }));
       }
-      setChoices((c) => ({ ...c, dropped: c.dropped.filter((id) => id !== versionId) }));
+      include(versionId);
       selectVersion(versionId);
     },
-    [version, compared, setChoices, selectVersion],
+    [version, compared, setChoices, include, selectVersion],
   );
 
   const setMode = setModeState;
@@ -234,16 +249,14 @@ export function CompareProvider({ children }: { children: ReactNode }) {
   }, [active, mode, reference, focus, compared, selectVersion]);
 
   const toggleCompared = useCallback(
-    (versionId: string) =>
-      setChoices((c) => {
-        const out = c.dropped.includes(versionId);
-        return {
-          ...c,
-          dropped: out ? c.dropped.filter((id) => id !== versionId) : [...c.dropped, versionId],
-          referenceId: !out && c.referenceId === versionId ? null : c.referenceId,
-        };
-      }),
-    [setChoices],
+    (versionId: string) => {
+      if (!compared.some((v) => v.id === versionId)) return include(versionId);
+      // Taking the original out again is not a drop: it was only ever a guest.
+      if (versionId === ORIGINAL_ID) setChoices((c) => ({ ...c, withOriginal: false }));
+      else setDropped(versionId, true);
+      setChoices((c) => (c.referenceId === versionId ? { ...c, referenceId: null } : c));
+    },
+    [compared, include, setChoices, setDropped],
   );
 
   const dropFocused = useCallback(() => {
@@ -254,10 +267,10 @@ export function CompareProvider({ children }: { children: ReactNode }) {
     if (next) selectVersion(next.id);
   }, [focus, compared, toggleCompared, selectVersion]);
 
-  const lastDropped = [...choices.dropped].reverse().find((id) => id !== ORIGINAL_ID) ?? null;
+  const lastDropped = photo?.droppedIds[photo.droppedIds.length - 1] ?? null;
   const restoreLast = useCallback(() => {
-    if (lastDropped) setChoices((c) => ({ ...c, dropped: c.dropped.filter((id) => id !== lastDropped) }));
-  }, [lastDropped, setChoices]);
+    if (lastDropped) setDropped(lastDropped, false);
+  }, [lastDropped, setDropped]);
 
   const swapPair = useCallback(() => {
     if (against) focusVersion(against.id);
@@ -351,7 +364,7 @@ export function CompareProvider({ children }: { children: ReactNode }) {
     if (dragging.current || !active) return;
     const target = agentView.focusVersionId;
     if (target) {
-      setChoices((c) => ({ ...c, dropped: c.dropped.filter((id) => id !== target) }));
+      include(target);
       if (target !== version?.id) selectVersion(target);
     }
     if (agentView.centre && agentView.magnification && fit > 0) {
@@ -359,7 +372,7 @@ export function CompareProvider({ children }: { children: ReactNode }) {
       setMoving({ view: { fit: false, scale, cx: agentView.centre.x, cy: agentView.centre.y }, offsets: {} });
     }
     setFollowing(true);
-  }, [active, agentView, fit, version?.id, selectVersion, setChoices]);
+  }, [active, agentView, fit, version?.id, selectVersion, include]);
 
   const state = useMemo<CompareState>(
     () => ({
@@ -367,6 +380,7 @@ export function CompareProvider({ children }: { children: ReactNode }) {
       setMode,
       compared,
       isCompared: (id) => compared.some((v) => v.id === id),
+      isDropped: (id) => photo?.droppedIds.includes(id) ?? false,
       toggleCompared,
       dropFocused,
       restoreLast,
@@ -407,6 +421,7 @@ export function CompareProvider({ children }: { children: ReactNode }) {
       mode,
       setMode,
       compared,
+      photo,
       toggleCompared,
       dropFocused,
       restoreLast,

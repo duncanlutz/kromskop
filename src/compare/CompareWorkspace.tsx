@@ -91,6 +91,7 @@ export function CompareWorkspace() {
         <VersionStack
           comparison={{
             isCompared: compare.isCompared,
+            isDropped: compare.isDropped,
             toggle: compare.toggleCompared,
             focus: compare.focusVersion,
             count: compare.compared.length,

@@ -8,6 +8,8 @@ import styles from "./VersionStack.module.css";
 /** What Compare adds to the stack: which versions are in the comparison. */
 export interface ComparisonControls {
   isCompared(versionId: string): boolean;
+  /** Dropped by the person, as opposed to never having been added. */
+  isDropped(versionId: string): boolean;
   toggle(versionId: string): void;
   /** Brings a version into the comparison if need be, and focuses it. */
   focus(versionId: string): void;
@@ -87,6 +89,7 @@ interface VersionRowProps {
 function VersionRow({ photo, item, selected, comparison }: VersionRowProps) {
   const { selectVersion, togglePick } = useSession();
   const compared = comparison?.isCompared(item.id) ?? false;
+  const dropped = comparison?.isDropped(item.id) ?? false;
   const original = isOriginal(item);
   const picked = photo.pickId === item.id;
   const parent = item.parentId ? photo.versions.find((v) => v.id === item.parentId) : undefined;
@@ -99,7 +102,7 @@ function VersionRow({ photo, item, selected, comparison }: VersionRowProps) {
       className={styles.row}
       data-selected={(comparison ? selected && compared : selected) || undefined}
       data-original={original || undefined}
-      data-comparing={comparison ? (compared ? "in" : "out") : undefined}
+      data-comparing={comparison ? (compared ? "in" : dropped ? "dropped" : "out") : undefined}
     >
       <button
         type="button"
@@ -126,6 +129,7 @@ function VersionRow({ photo, item, selected, comparison }: VersionRowProps) {
                 {parent && !isOriginal(parent) && <span> · from {parent.letter}</span>}
               </>
             )}
+            {dropped && <span className={styles.dropped}> · Dropped</span>}
           </span>
           {item.rationale ? (
             <span className={styles.rationale}>{item.rationale}</span>
@@ -136,12 +140,22 @@ function VersionRow({ photo, item, selected, comparison }: VersionRowProps) {
       </button>
 
       {comparison && (
-        <Tooltip label={compared ? "Drop from the comparison" : "Add to the comparison"} keys={compared ? "X" : undefined} side="right">
+        <Tooltip
+          label={compared ? "Drop from the comparison" : dropped ? "Restore to the comparison" : "Add to the comparison"}
+          keys={compared ? "X" : undefined}
+          side="right"
+        >
           <button
             type="button"
             className={styles.compare}
             aria-pressed={compared}
-            aria-label={compared ? `Drop ${label} from the comparison` : `Add ${label} to the comparison`}
+            aria-label={
+              compared
+                ? `Drop ${label} from the comparison`
+                : dropped
+                  ? `Restore ${label} to the comparison`
+                  : `Add ${label} to the comparison`
+            }
             onClick={() => comparison.toggle(item.id)}
           >
             {compared ? <Minus size={16} /> : <Plus size={16} />}

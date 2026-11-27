@@ -71,6 +71,7 @@ type Action =
   | { type: "selectPhoto"; photoId: string }
   | { type: "selectVersion"; versionId: string }
   | { type: "togglePick"; versionId: string }
+  | { type: "setDropped"; versionId: string; dropped: boolean }
   | { type: "setParam"; id: ParamId; value: number }
   | { type: "agentState"; state: AgentState; detail?: string }
   | { type: "agentNever" }
@@ -171,6 +172,14 @@ function reduce(state: MockState, action: Action): MockState {
         pickId: p.pickId === action.versionId ? null : action.versionId,
       }));
       return { ...state, shoot };
+    }
+
+    case "setDropped": {
+      if (!photo || photo.droppedIds.includes(action.versionId) === action.dropped) return state;
+      const droppedIds = action.dropped
+        ? [...photo.droppedIds, action.versionId]
+        : photo.droppedIds.filter((id) => id !== action.versionId);
+      return { ...state, shoot: updatePhoto(state, photo.id, (p) => ({ ...p, droppedIds })) };
     }
 
     case "setParam": {
@@ -637,6 +646,7 @@ export function MockSessionProvider({ children }: { children: ReactNode }) {
       selectPhoto: (photoId) => dispatch({ type: "selectPhoto", photoId }),
       selectVersion: (versionId) => dispatch({ type: "selectVersion", versionId }),
       togglePick: (versionId) => dispatch({ type: "togglePick", versionId }),
+      setDropped: (versionId, dropped) => dispatch({ type: "setDropped", versionId, dropped }),
       setParam: (id, value) => dispatch({ type: "setParam", id, value }),
       addNote: (versionId, region, text) => dispatch({ type: "addNote", versionId, region, text }),
       removeNote: (noteId) => dispatch({ type: "removeNote", noteId }),
