@@ -5,6 +5,7 @@ import { PrefsProvider } from "./shell/Prefs";
 import { StubView } from "./shell/StubView";
 import { Toolbar } from "./shell/Toolbar";
 import { VIEWS, type View } from "./shell/ViewSwitch";
+import { releaseFocusAfterClick, releaseFocusOnEscape } from "./ui/focus";
 import { TooltipProvider } from "./ui/Tooltip";
 import styles from "./App.module.css";
 
@@ -18,6 +19,17 @@ const MockControlsPopover = import.meta.env.DEV
 
 export function App() {
   const [view, setView] = useState<View>("develop");
+
+  // A control clicked with the mouse does not keep the keyboard, and Escape
+  // lets go of any control, so the page's shortcuts are never left dead.
+  useEffect(() => {
+    window.addEventListener("click", releaseFocusAfterClick);
+    window.addEventListener("keydown", releaseFocusOnEscape);
+    return () => {
+      window.removeEventListener("click", releaseFocusAfterClick);
+      window.removeEventListener("keydown", releaseFocusOnEscape);
+    };
+  }, []);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
