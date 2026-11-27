@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { ORIGINAL_ID } from "../model/types";
+import { isOriginal } from "../model/types";
 import { useSession } from "../session/Session";
 import { AdjustPanel } from "./AdjustPanel";
 import styles from "./DevelopWorkspace.module.css";
@@ -51,9 +51,13 @@ export function DevelopWorkspace() {
           session.togglePick(version.id);
           break;
         case "\\": {
-          // Flip to the original, and back to the pick or else the newest version.
-          const newest = stack[0];
-          session.selectVersion(version.id === ORIGINAL_ID && newest ? (photo.pickId ?? newest.id) : ORIGINAL_ID);
+          // Flip to the original, and back to the pick or else the newest
+          // version. When the original is itself the pick, back means the newest.
+          const original = photo.versions.find(isOriginal);
+          const edited = stack.filter((v) => !isOriginal(v));
+          const back = edited.find((v) => v.id === photo.pickId) ?? edited[0];
+          const target = isOriginal(version) ? back : original;
+          if (target) session.selectVersion(target.id);
           break;
         }
         default:
