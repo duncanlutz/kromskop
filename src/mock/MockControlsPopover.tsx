@@ -6,6 +6,7 @@
 
 import { useEffect, useState } from "react";
 import type { AgentState, PageStatus } from "../model/types";
+import { startupOptions } from "../platform/query";
 import { AGENT_STATE_LABELS } from "../shell/AgentIndicator";
 import styles from "./MockControlsPopover.module.css";
 import { useMockControls } from "./MockSession";
@@ -28,7 +29,7 @@ const PAGES: Array<{ id: PageStatus; label: string }> = [
 
 export function MockControlsPopover() {
   const mock = useMockControls();
-  const [open, setOpen] = useState(() => new URLSearchParams(window.location.search).has("mock"));
+  const [open, setOpen] = useState(() => startupOptions().has("mock"));
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {

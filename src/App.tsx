@@ -1,6 +1,5 @@
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { DevelopWorkspace } from "./develop/DevelopWorkspace";
-import { MockControlsPopover } from "./mock/MockControlsPopover";
 import { MockSessionProvider } from "./mock/MockSession";
 import { PrefsProvider } from "./shell/Prefs";
 import { StubView } from "./shell/StubView";
@@ -8,6 +7,14 @@ import { Toolbar } from "./shell/Toolbar";
 import { VIEWS, type View } from "./shell/ViewSwitch";
 import { TooltipProvider } from "./ui/Tooltip";
 import styles from "./App.module.css";
+
+/*
+ * The reviewer's panel for driving the mock. It is loaded in development
+ * only: in a release build this is null and the module is never bundled.
+ */
+const MockControlsPopover = import.meta.env.DEV
+  ? lazy(() => import("./mock/MockControlsPopover").then((module) => ({ default: module.MockControlsPopover })))
+  : null;
 
 export function App() {
   const [view, setView] = useState<View>("develop");
@@ -37,7 +44,11 @@ export function App() {
             {view === "compare" && (
               <StubView name="Compare" purpose="Two to six versions side by side with linked zoom, to pick one and pin comments." />
             )}
-            <MockControlsPopover />
+            {MockControlsPopover && (
+              <Suspense fallback={null}>
+                <MockControlsPopover />
+              </Suspense>
+            )}
           </div>
         </TooltipProvider>
       </MockSessionProvider>

@@ -1,4 +1,5 @@
 import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
+import { fromQuery } from "../platform/query";
 
 /** The area around the photo. Its brightness changes how the photo reads. */
 export interface Surround {
@@ -31,11 +32,6 @@ export function usePrefs(): Prefs {
   const prefs = useContext(PrefsContext);
   if (!prefs) throw new Error("usePrefs needs PrefsProvider above it");
   return prefs;
-}
-
-function fromQuery<T extends string>(name: string, allowed: readonly T[], fallback: T): T {
-  const value = new URLSearchParams(window.location.search).get(name);
-  return allowed.find((item) => item === value) ?? fallback;
 }
 
 export function PrefsProvider({ children }: { children: ReactNode }) {

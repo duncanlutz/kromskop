@@ -10,6 +10,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useReducer,
 import { clampValue, paramDef, type ParamId } from "../model/params";
 import { ORIGINAL_ID, type AgentState, type AgentStatus, type Author, type PageStatus, type Photo, type Shoot } from "../model/types";
 import { addVersion, changeParam } from "../model/versions";
+import { startupOptions } from "../platform/query";
 import { SessionContext, type Session } from "../session/Session";
 import { mockLook } from "./filter";
 import { countLevels, loadPixels } from "./histogram";
@@ -213,7 +214,7 @@ const PAGES: PageStatus[] = ["empty", "loading", "ready"];
 const AGENT_STATES: AgentState[] = ["working", "waiting", "error", "done", "disconnected"];
 
 function initialState(): MockState {
-  const query = new URLSearchParams(window.location.search);
+  const query = startupOptions();
   const page = PAGES.find((p) => p === query.get("page")) ?? "ready";
   const agentState = AGENT_STATES.find((s) => s === query.get("agent")) ?? "waiting";
   const never = query.get("agent") === "never";
