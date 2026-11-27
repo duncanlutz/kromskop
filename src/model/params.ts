@@ -157,10 +157,59 @@ export function describeChanges(params: Record<ParamId, number>, parent: Record<
   return named.join(" · ");
 }
 
-/** Reads what a person typed: accepts "+0.3", "-12", "−12", "5200 K", "0,35". */
+/** True when `text` is digits grouped in threes by `separator`, as in 1,234,567. */
+function groupedInThrees(text: string, separator: string): boolean {
+  const [first = "", ...rest] = text.split(separator);
+  return /^[0-9]{1,3}$/.test(first) && rest.every((group) => /^[0-9]{3}$/.test(group));
+}
+
+/**
+ * Reads an unsigned number that may use a comma or a point as either the
+ * decimal mark or the thousands separator. Returns null when it cannot tell
+ * which was meant, rather than guessing.
+ */
+function readNumber(digits: string, decimals: number): number | null {
+  const marks = digits.match(/[.,]/g) ?? [];
+  if (marks.length === 0) return Number(digits);
+
+  const lastAt = Math.max(digits.lastIndexOf("."), digits.lastIndexOf(","));
+  const last = digits[lastAt]!;
+  const head = digits.slice(0, lastAt);
+  const tail = digits.slice(lastAt + 1);
+
+  if (new Set(marks).size === 2) {
+    // Both marks: the last is the decimal mark and the other groups thousands,
+    // as in 1,234.5 or 1.234,5. Anything else is not a number.
+    const other = last === "." ? "," : ".";
+    if (head.includes(last) || !groupedInThrees(head, other)) return null;
+    return Number(`${head.split(other).join("")}.${tail}`);
+  }
+
+  if (marks.length > 1) {
+    // One mark repeated can only be grouping, as in 1,234,567.
+    return groupedInThrees(digits, last) ? Number(digits.split(last).join("")) : null;
+  }
+
+  // A single mark with three digits after it and a non-zero group before it
+  // reads as thousands ("5,200") and as a decimal ("5.200") alike. A control
+  // without decimals can only mean thousands; one with decimals cannot tell.
+  if (tail.length === 3 && /^[1-9][0-9]{0,2}$/.test(head)) return decimals === 0 ? Number(head + tail) : null;
+
+  return Number(`${head || "0"}.${tail || "0"}`);
+}
+
+/**
+ * Reads what a person typed: "+0.3", "-12", "−12", "5200 K", "5,200 K",
+ * "0,35". A unit after the number is ignored. Returns null for anything
+ * that is not a number or whose separators are ambiguous.
+ */
 export function parseValue(def: ParamDef, text: string): number | null {
-  const cleaned = text.trim().replace(MINUS, "-").replace(",", ".").replace(/[^0-9.+-]/g, "");
-  if (cleaned === "" || cleaned === "+" || cleaned === "-") return null;
-  const value = Number(cleaned);
-  return Number.isFinite(value) ? normalise(def, value) : null;
+  const match = text
+    .trim()
+    .replace(MINUS, "-")
+    .match(/^([+-]?)\s*([0-9][0-9.,\s\u00a0\u202f]*|[.,][0-9]+)\s*[a-zA-Z%°]*$/);
+  if (!match) return null;
+  const number = readNumber(match[2]!.replace(/[\s\u00a0\u202f]/g, ""), def.decimals);
+  if (number === null || !Number.isFinite(number)) return null;
+  return clampValue(def, match[1] === "-" ? -number : number);
 }

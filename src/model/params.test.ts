@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { clampValue, formatValue, fromPosition, normalise, paramDef, toPosition } from "./params";
+import { clampValue, formatValue, fromPosition, normalise, paramDef, parseValue, toPosition } from "./params";
 
 const exposure = paramDef("exposure");
 const temp = paramDef("temp");
@@ -60,5 +60,61 @@ describe("normalise", () => {
 
   it("leaves no floating-point noise", () => {
     expect(normalise(exposure, 0.1 + 0.2)).toBe(0.3);
+  });
+});
+
+describe("parseValue", () => {
+  it("reads plain and signed numbers", () => {
+    expect(parseValue(contrast, "12")).toBe(12);
+    expect(parseValue(contrast, "+12")).toBe(12);
+    expect(parseValue(contrast, "-12")).toBe(-12);
+    expect(parseValue(contrast, "\u221212")).toBe(-12);
+    expect(parseValue(exposure, "+0.3")).toBe(0.3);
+    expect(parseValue(exposure, ".5")).toBe(0.5);
+  });
+
+  it("ignores a unit and stray spaces", () => {
+    expect(parseValue(temp, "5200 K")).toBe(5200);
+    expect(parseValue(temp, " 5200K ")).toBe(5200);
+  });
+
+  it("reads thousands separators on a control without decimals", () => {
+    expect(parseValue(temp, "5,200 K")).toBe(5200);
+    expect(parseValue(temp, "5.200")).toBe(5200);
+    expect(parseValue(temp, "5 200")).toBe(5200);
+    expect(parseValue(temp, "12,000")).toBe(12000);
+  });
+
+  it("reads a decimal comma", () => {
+    expect(parseValue(exposure, "0,35")).toBe(0.35);
+    expect(parseValue(exposure, "-1,5")).toBe(-1.5);
+    expect(parseValue(exposure, "0,350")).toBe(0.35);
+  });
+
+  it("reads both marks together either way round", () => {
+    expect(parseValue(temp, "5,200.4")).toBe(5200);
+    expect(parseValue(temp, "5.200,4")).toBe(5200);
+  });
+
+  it("keeps the control's precision instead of snapping to the step", () => {
+    expect(parseValue(temp, "5237")).toBe(5237);
+    expect(parseValue(exposure, "0.33")).toBe(0.33);
+  });
+
+  it("clamps to the range", () => {
+    expect(parseValue(temp, "900")).toBe(2000);
+    expect(parseValue(exposure, "12")).toBe(5);
+  });
+
+  it("rejects what it cannot read rather than guessing", () => {
+    // Thousands or decimal? A control with decimals cannot tell.
+    expect(parseValue(exposure, "1,250")).toBeNull();
+    expect(parseValue(exposure, "1.250")).toBeNull();
+    expect(parseValue(temp, "5,20,0")).toBeNull();
+    expect(parseValue(temp, "5.2.0,1")).toBeNull();
+    expect(parseValue(temp, "")).toBeNull();
+    expect(parseValue(temp, "-")).toBeNull();
+    expect(parseValue(temp, "warm")).toBeNull();
+    expect(parseValue(temp, "52e3")).toBeNull();
   });
 });
