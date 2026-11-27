@@ -1,13 +1,16 @@
 /*
- * MOCK ONLY. A reviewer's panel for driving the mock: agent state, a scripted
- * agent edit, and the page's empty and loading states. Hidden until
- * M is pressed. It is not part of the product and goes away with the mock.
+ * MOCK ONLY. A reviewer's panel for driving the mock: agent state, scripted
+ * agent actions, the page's empty and loading states, and what Compare
+ * shows. Hidden until M is pressed. It is not part of the product and goes
+ * away with the mock.
  */
 
 import { useEffect, useState } from "react";
 import type { AgentState, PageStatus } from "../model/types";
+import { COMPARE_MODES, useCompare } from "../compare/CompareState";
 import { startupOptions } from "../platform/query";
 import { AGENT_STATE_LABELS } from "../shell/AgentIndicator";
+import { useView } from "../shell/ViewState";
 import styles from "./MockControlsPopover.module.css";
 import { useMockControls } from "./MockSession";
 
@@ -29,6 +32,9 @@ const PAGES: Array<{ id: PageStatus; label: string }> = [
 
 export function MockControlsPopover() {
   const mock = useMockControls();
+  const compare = useCompare();
+  const { view, setView } = useView();
+  const comparing = view === "compare" && mock.page === "ready";
   const [open, setOpen] = useState(() => startupOptions().has("mock"));
 
   useEffect(() => {
@@ -70,7 +76,78 @@ export function MockControlsPopover() {
       </div>
 
       <Choice legend="Page state" name="mock-page" options={PAGES} value={mock.page} onChange={mock.setPage} />
+
+      <div className={styles.section}>
+        <p className={styles.legend}>Compare</p>
+        <Segments
+          label="Versions"
+          options={[2, 3, 4, 5, 6].map((n) => ({ id: String(n), label: String(n) }))}
+          value={String(mock.versionCount)}
+          onChange={(count) => {
+            mock.setVersionCount(Number(count));
+            setView("compare");
+          }}
+        />
+        <Segments
+          label="Mode"
+          options={COMPARE_MODES}
+          value={compare.mode}
+          onChange={(mode) => {
+            compare.setMode(mode);
+            setView("compare");
+          }}
+        />
+        <button type="button" className={styles.action} disabled={!comparing} onClick={mock.agentPoints}>
+          Agent points at a region
+        </button>
+        <button type="button" className={styles.action} disabled={!comparing || mock.waitingNotes === 0} onClick={mock.agentReadsNotes}>
+          Agent reads the notes
+        </button>
+        <button
+          type="button"
+          className={styles.action}
+          disabled={!comparing || mock.openNoteNumber === null}
+          onClick={mock.agentAddressesNote}
+        >
+          {mock.openNoteNumber === null
+            ? "Agent addresses a note (none open)"
+            : `Agent addresses note ${mock.openNoteNumber} with a new version`}
+        </button>
+        <label className={styles.option}>
+          <input type="checkbox" checked={mock.holdRendering} onChange={(event) => mock.setHoldRendering(event.currentTarget.checked)} />
+          <span className={styles.check} />
+          Tiles still rendering
+        </label>
+      </div>
     </aside>
+  );
+}
+
+interface SegmentsProps<T extends string> {
+  label: string;
+  options: Array<{ id: T; label: string }>;
+  value: T;
+  onChange(value: T): void;
+}
+
+/** A row of small buttons for a choice that should not cost a line each. */
+function Segments<T extends string>({ label, options, value, onChange }: SegmentsProps<T>) {
+  return (
+    <div className={styles.segments} role="radiogroup" aria-label={label}>
+      <span className={styles.segmentsLabel}>{label}</span>
+      {options.map((option) => (
+        <button
+          key={option.id}
+          type="button"
+          role="radio"
+          aria-checked={option.id === value}
+          className={styles.segment}
+          onClick={() => onChange(option.id)}
+        >
+          {option.label}
+        </button>
+      ))}
+    </div>
   );
 }
 
