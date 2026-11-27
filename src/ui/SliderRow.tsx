@@ -110,6 +110,11 @@ export function SliderRow({ def, value, parentValue, onChange, swatch, agentMark
       case "End":
         event.preventDefault();
         return set(def.max);
+      // The keyboard's way to reset, where a pointer double-clicks.
+      case "Backspace":
+      case "Delete":
+        event.preventDefault();
+        return reset();
     }
   };
 
@@ -164,7 +169,7 @@ export function SliderRow({ def, value, parentValue, onChange, swatch, agentMark
       <span
         className={styles.label}
         onDoubleClick={reset}
-        title={changed ? "Double-click to reset" : undefined}
+        title={changed ? "Double-click to reset, or press Delete on the slider" : undefined}
       >
         {swatch && <span className={styles.swatch} style={{ background: swatch }} aria-hidden="true" />}
         {def.label}
@@ -181,6 +186,8 @@ export function SliderRow({ def, value, parentValue, onChange, swatch, agentMark
         aria-valuenow={value}
         aria-valuetext={def.unit ? `${formatted} ${def.unit}` : formatted}
         aria-disabled={disabled || undefined}
+        aria-keyshortcuts="Delete"
+        aria-description={changed ? "Changed from the parent version. Delete resets it." : undefined}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={endDrag}
