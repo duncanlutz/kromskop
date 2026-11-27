@@ -1,5 +1,5 @@
 import { useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
-import { formatValue, fromPosition, normalise, parseValue, toPosition, type ParamDef } from "../model/params";
+import { clampValue, formatValue, fromPosition, parseValue, toPosition, type ParamDef } from "../model/params";
 import styles from "./SliderRow.module.css";
 
 interface SliderRowProps {
@@ -34,12 +34,14 @@ export function SliderRow({ def, value, parentValue, onChange, swatch, agentMark
   const formatted = formatValue(def, value);
 
   const set = (next: number) => {
-    const clean = normalise(def, next);
+    const clean = clampValue(def, next);
     if (clean !== value) onChange(clean);
   };
 
+  // Reset restores the parent's value exactly as it is, whatever its precision,
+  // so the row can stop counting as changed.
   const reset = () => {
-    if (!disabled && parentValue !== null) set(parentValue);
+    if (!disabled && parentValue !== null && parentValue !== value) onChange(parentValue);
   };
 
   /*
@@ -142,8 +144,7 @@ export function SliderRow({ def, value, parentValue, onChange, swatch, agentMark
       const step = event.shiftKey ? def.bigStep : def.step;
       event.preventDefault();
       setDraft(null);
-      const next = normalise(def, parsed + (event.key === "ArrowUp" ? step : -step));
-      if (next !== value) onChange(next);
+      set(parsed + (event.key === "ArrowUp" ? step : -step));
     }
   };
 

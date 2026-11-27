@@ -25,7 +25,7 @@ export interface ParamDef {
   label: string;
   min: number;
   max: number;
-  /** Arrow keys move by this much. */
+  /** Arrow keys move by this much. Values need not be multiples of it. */
   step: number;
   /** Shift and arrow keys move by this much. */
   bigStep: number;
@@ -103,7 +103,19 @@ export function paramDef(id: ParamId): ParamDef {
   return def;
 }
 
-/** Clamps to the range and snaps to the step, without float noise. */
+/**
+ * Clamps to the range and rounds to the control's own precision. This is
+ * what any value may be: a typed 5237 K stays 5237 K, and 0.33 stays 0.33.
+ */
+export function clampValue(def: ParamDef, value: number): number {
+  const clamped = Math.min(def.max, Math.max(def.min, value));
+  return Number(clamped.toFixed(def.decimals));
+}
+
+/**
+ * Clamps to the range and snaps to the arrow step. Only for values that come
+ * from a position along the track, where finer control would be false precision.
+ */
 export function normalise(def: ParamDef, value: number): number {
   const clamped = Math.min(def.max, Math.max(def.min, value));
   const snapped = Math.round(clamped / def.step) * def.step;
