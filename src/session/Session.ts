@@ -50,8 +50,18 @@ export interface Session {
   selectVersion(versionId: string): void;
   togglePick(versionId: string): void;
   /**
+   * Brackets one gesture on the adjustments: a drag, a held key, a stay in
+   * a number field. Between the two, `setParam` moves what is shown but
+   * creates, discards and renames nothing; the version rules are applied
+   * once, at the commit. `version` and `parent` describe the edit in
+   * progress meanwhile.
+   */
+  beginEdit(): void;
+  commitEdit(): void;
+  /**
    * A person moves a slider. Versions are immutable, so the first change to
-   * a version that is not their own working copy starts a new one.
+   * a version that is not their own working copy starts a new one. Outside
+   * a gesture this is an edit of its own, committed at once.
    */
   setParam(id: ParamId, value: number): void;
 }

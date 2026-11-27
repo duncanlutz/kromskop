@@ -1,4 +1,4 @@
-import { useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
 import { clampValue, formatValue, fromPosition, parseValue, toPosition, type ParamDef } from "../model/params";
 import styles from "./SliderRow.module.css";
 
@@ -8,6 +8,12 @@ interface SliderRowProps {
   /** Value in the parent version. Null when there is nothing to compare with. */
   parentValue: number | null;
   onChange(value: number): void;
+  /**
+   * Bracket one gesture: a drag, a held key, or a stay in the number field.
+   * Whoever owns the value can then treat everything between as one edit.
+   */
+  onGestureStart?(): void;
+  onGestureEnd?(): void;
   /** The name assistive technology reads, when the visible label alone is not enough. */
   name?: string;
   /** A CSS colour shown as a small chip before the label, where hue is the meaning. */
@@ -22,13 +28,41 @@ const GRAB_RADIUS = 6;
 /** A press has to travel this far before it counts as a drag. */
 const DRAG_SLOP = 2;
 
-export function SliderRow({ def, value, parentValue, onChange, name = def.label, swatch, agentMark, disabled = false }: SliderRowProps) {
+export function SliderRow({
+  def,
+  value,
+  parentValue,
+  onChange,
+  onGestureStart,
+  onGestureEnd,
+  name = def.label,
+  swatch,
+  agentMark,
+  disabled = false,
+}: SliderRowProps) {
   const track = useRef<HTMLDivElement>(null);
   const drag = useRef<{ startX: number; lastX: number; position: number; moving: boolean } | null>(null);
   const [dragging, setDragging] = useState(false);
   const [draft, setDraft] = useState<string | null>(null);
   /** Set when Escape or Return has already dealt with the draft, so the blur that follows does not commit it. */
   const settled = useRef(false);
+
+  // One gesture at a time, announced once at each end however it was made.
+  const gesture = useRef(false);
+  const ends = useRef(onGestureEnd);
+  ends.current = onGestureEnd;
+  const startGesture = () => {
+    if (gesture.current) return;
+    gesture.current = true;
+    onGestureStart?.();
+  };
+  const endGesture = () => {
+    if (!gesture.current) return;
+    gesture.current = false;
+    ends.current?.();
+  };
+  // A row that goes away mid-gesture still ends it.
+  useEffect(() => endGesture, []);
 
   const changed = parentValue !== null && value !== parentValue;
   const position = toPosition(def, value);
@@ -71,6 +105,7 @@ export function SliderRow({ def, value, parentValue, onChange, name = def.label,
       if (Math.abs(event.clientX - held.startX) < DRAG_SLOP) return;
       held.moving = true;
       setDragging(true);
+      startGesture();
     }
     const width = track.current.getBoundingClientRect().width;
     const travel = (event.clientX - held.lastX) / width;
@@ -82,6 +117,7 @@ export function SliderRow({ def, value, parentValue, onChange, name = def.label,
   const endDrag = () => {
     drag.current = null;
     setDragging(false);
+    endGesture();
   };
 
   /* Keys. Arrows step, Shift steps larger. */
@@ -91,8 +127,12 @@ export function SliderRow({ def, value, parentValue, onChange, name = def.label,
     set(value + direction * (event.shiftKey ? def.bigStep : def.step));
   };
 
+  // A key held down repeats; all of it, from press to release, is one gesture.
+  const TRACK_KEYS = ["ArrowRight", "ArrowUp", "ArrowLeft", "ArrowDown", "PageUp", "PageDown", "Home", "End", "Backspace", "Delete"];
+
   const onTrackKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (disabled) return;
+    if (TRACK_KEYS.includes(event.key)) startGesture();
     switch (event.key) {
       case "ArrowRight":
       case "ArrowUp":
@@ -134,6 +174,8 @@ export function SliderRow({ def, value, parentValue, onChange, name = def.label,
   const onFieldBlur = () => {
     if (settled.current) settled.current = false;
     else commitDraft();
+    // The stay in the field is over, whatever was typed or stepped in it.
+    endGesture();
   };
 
   const onFieldKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
@@ -195,6 +237,8 @@ export function SliderRow({ def, value, parentValue, onChange, name = def.label,
         onPointerUp={endDrag}
         onPointerCancel={endDrag}
         onKeyDown={onTrackKeyDown}
+        onKeyUp={endGesture}
+        onBlur={endGesture}
         onDoubleClick={reset}
       >
         <span className={styles.rail} />
@@ -216,6 +260,7 @@ export function SliderRow({ def, value, parentValue, onChange, name = def.label,
         value={draft ?? formatted}
         onFocus={(event) => {
           settled.current = false;
+          startGesture();
           setDraft(formatted);
           event.currentTarget.select();
         }}

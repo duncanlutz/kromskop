@@ -10,6 +10,11 @@
  * A person's working copy that ends up equal to its parent says nothing, so
  * it is discarded, unless something has been built on it.
  *
+ * A gesture is one edit. While a slider is being dragged, a key held or a
+ * number typed, nothing is created, discarded or renamed: the changes are
+ * held beside the photo and the rules above are applied once, when the
+ * gesture ends.
+ *
  * A letter, and the id made from it, is never issued twice for one photo,
  * not even after the version that had it was discarded.
  *
@@ -17,7 +22,7 @@
  */
 
 import { ALL_PARAMS, type ParamId } from "./params";
-import type { Author, Photo, Version } from "./types";
+import type { Author, Params, Photo, Version } from "./types";
 
 /**
  * The letter for the nth version of a photo, counting from zero: A to Z,
@@ -140,36 +145,87 @@ function discard(photo: Photo, version: Version): Photo {
 }
 
 /**
- * One adjustment made by `by` to a version.
- *
- * It starts a new version when the target is the original, is someone
- * else's, or already has versions built on it. Otherwise the author's own
- * working copy is replaced by a new snapshot under the same id.
- *
- * When that leaves a person's working copy equal to its parent, as a reset
- * of its only change does, the copy is discarded and the parent is what to
- * show: an "Adjusted" version that adjusts nothing should not exist.
+ * A gesture in progress on one version: a drag, a held key, a stay in the
+ * number field. It holds what the gesture has changed so far. The photo is
+ * not touched until the edit is committed.
  */
-export function changeParam(photo: Photo, versionId: string, id: ParamId, value: number, by: Author, fork: ForkLabel): Change {
-  const target = photo.versions.find((v) => v.id === versionId);
-  if (!target || target.params[id] === value) return { photo, versionId, forked: false, discarded: null };
+export interface Edit {
+  /** The version the gesture began on. */
+  versionId: string;
+  by: Author;
+  /** Only the adjustments the gesture has moved, at their latest values. */
+  changes: Readonly<Partial<Record<ParamId, number>>>;
+}
 
-  const ownWorkingCopy = sameAuthor(target.author, by) && !hasChildren(photo, versionId);
-  if (ownWorkingCopy) {
-    const next: Version = { ...target, params: { ...target.params, [id]: value } };
-    const changed: Photo = { ...photo, versions: photo.versions.map((v) => (v.id === versionId ? next : v)) };
-    if (by.kind === "you" && next.parentId !== null && sameAsParent(changed, next)) {
+export function beginEdit(versionId: string, by: Author): Edit {
+  return { versionId, by, changes: {} };
+}
+
+/** One more movement within the gesture. Nothing but the edit changes. */
+export function editParam(edit: Edit, id: ParamId, value: number): Edit {
+  return { ...edit, changes: { ...edit.changes, [id]: value } };
+}
+
+/** True when committing would start a new version rather than update the target. */
+function wouldFork(photo: Photo, target: Version, by: Author): boolean {
+  return !(sameAuthor(target.author, by) && !hasChildren(photo, target.id));
+}
+
+function applied(target: Version, edit: Edit): Params {
+  return { ...target.params, ...edit.changes };
+}
+
+/**
+ * What to show while the gesture is under way: the target with the
+ * gesture's changes on it, measured against the parent it will have once
+ * committed. For an edit that will start a new version that parent is the
+ * target itself, so "changed" already reads as it will afterwards.
+ */
+export function previewEdit(photo: Photo, edit: Edit): { version: Version; parent: Version | null } | null {
+  const target = photo.versions.find((v) => v.id === edit.versionId);
+  if (!target) return null;
+  const forks = wouldFork(photo, target, edit.by);
+  const parent = forks ? target : parentOf(photo, target);
+  return { version: { ...target, parentId: parent?.id ?? null, params: applied(target, edit) }, parent };
+}
+
+/**
+ * The end of the gesture, and the only point at which the photo changes.
+ *
+ * If the gesture left every value where it began, nothing happens. If the
+ * target is the original, someone else's, or has versions built on it, one
+ * new version is made. Otherwise the author's own working copy is replaced
+ * by a new snapshot under the same id, or, when a person's copy now equals
+ * its parent, discarded once, with the parent as what to show: an
+ * "Adjusted" version that adjusts nothing should not exist.
+ */
+export function commitEdit(photo: Photo, edit: Edit, fork: ForkLabel): Change {
+  const target = photo.versions.find((v) => v.id === edit.versionId);
+  const unchanged: Change = { photo, versionId: edit.versionId, forked: false, discarded: null };
+  if (!target) return unchanged;
+  const params = applied(target, edit);
+  if (ALL_PARAMS.every((def) => params[def.id] === target.params[def.id])) return unchanged;
+
+  if (!wouldFork(photo, target, edit.by)) {
+    const next: Version = { ...target, params };
+    const changed: Photo = { ...photo, versions: photo.versions.map((v) => (v.id === target.id ? next : v)) };
+    if (edit.by.kind === "you" && next.parentId !== null && sameAsParent(changed, next)) {
       return { photo: discard(changed, next), versionId: next.parentId, forked: false, discarded: next.id };
     }
-    return { photo: changed, versionId, forked: false, discarded: null };
+    return { photo: changed, versionId: target.id, forked: false, discarded: null };
   }
 
-  const added = addVersion(photo, versionId, by, fork);
-  const changed: Version = { ...added.version, params: { ...added.version.params, [id]: value } };
+  const added = addVersion(photo, target.id, edit.by, fork);
+  const made: Version = { ...added.version, params };
   return {
-    photo: { ...added.photo, versions: added.photo.versions.map((v) => (v.id === changed.id ? changed : v)) },
-    versionId: changed.id,
+    photo: { ...added.photo, versions: added.photo.versions.map((v) => (v.id === made.id ? made : v)) },
+    versionId: made.id,
     forked: true,
     discarded: null,
   };
+}
+
+/** One adjustment as an edit of its own: begun, made and committed at once. */
+export function changeParam(photo: Photo, versionId: string, id: ParamId, value: number, by: Author, fork: ForkLabel): Change {
+  return commitEdit(photo, editParam(beginEdit(versionId, by), id, value), fork);
 }

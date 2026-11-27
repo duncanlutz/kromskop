@@ -5,7 +5,7 @@ import { useState } from "react";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { ALL_PARAMS, paramDef, type ParamId } from "../model/params";
 import type { Author, Params, Photo, Version } from "../model/types";
-import { changeParam, resetValue } from "../model/versions";
+import { beginEdit, changeParam, commitEdit, editParam, previewEdit, resetValue, type Edit } from "../model/versions";
 import { SliderRow } from "./SliderRow";
 
 const contrast = paramDef("contrast");
@@ -254,6 +254,165 @@ describe("reset, with the version rules behind the slider", () => {
     slider().focus();
     await userEvent.keyboard("{Delete}");
     expect(versions()).toBe("original p1-a");
+    expect(shown()).toBe("p1-a");
+  });
+});
+
+describe("gestures", () => {
+  function setup() {
+    const calls: string[] = [];
+    render(
+      <SliderRow
+        def={contrast}
+        value={14}
+        parentValue={0}
+        onChange={(value) => calls.push(`change ${value}`)}
+        onGestureStart={() => calls.push("start")}
+        onGestureEnd={() => calls.push("end")}
+      />,
+    );
+    return calls;
+  }
+
+  it("brackets a whole drag as one gesture", () => {
+    const calls = setup();
+    fireEvent.pointerDown(slider(), { button: 0, clientX: xOf(14) });
+    fireEvent.pointerMove(slider(), { clientX: xOf(20) });
+    fireEvent.pointerMove(slider(), { clientX: xOf(30) });
+    fireEvent.pointerUp(slider(), { clientX: xOf(30) });
+    expect(calls).toEqual(["start", "change 20", "change 30", "end"]);
+  });
+
+  it("announces no gesture for a press that never moves", () => {
+    const calls = setup();
+    fireEvent.pointerDown(slider(), { button: 0, clientX: xOf(60) });
+    fireEvent.pointerUp(slider(), { clientX: xOf(60) });
+    expect(calls).toEqual([]);
+  });
+
+  it("ends the gesture when the pointer is cancelled", () => {
+    const calls = setup();
+    fireEvent.pointerDown(slider(), { button: 0, clientX: xOf(14) });
+    fireEvent.pointerMove(slider(), { clientX: xOf(20) });
+    fireEvent.pointerCancel(slider());
+    expect(calls).toEqual(["start", "change 20", "end"]);
+  });
+
+  it("treats a held arrow key as one gesture, from press to release", () => {
+    const calls = setup();
+    slider().focus();
+    fireEvent.keyDown(slider(), { key: "ArrowRight" });
+    fireEvent.keyDown(slider(), { key: "ArrowRight", repeat: true });
+    fireEvent.keyDown(slider(), { key: "ArrowRight", repeat: true });
+    fireEvent.keyUp(slider(), { key: "ArrowRight" });
+    expect(calls.filter((call) => call === "start")).toHaveLength(1);
+    expect(calls.filter((call) => call === "end")).toHaveLength(1);
+    expect(calls[0]).toBe("start");
+    expect(calls[calls.length - 1]).toBe("end");
+  });
+
+  it("treats a stay in the number field as one gesture, ended after the commit", async () => {
+    const calls = setup();
+    await userEvent.click(field());
+    await userEvent.keyboard("55");
+    expect(calls).toEqual(["start"]);
+    await userEvent.tab();
+    expect(calls).toEqual(["start", "change 55", "end"]);
+  });
+
+  it("ends a gesture left open when the row goes away", () => {
+    const calls: string[] = [];
+    const { unmount } = render(
+      <SliderRow def={contrast} value={14} parentValue={0} onChange={() => undefined} onGestureStart={() => calls.push("start")} onGestureEnd={() => calls.push("end")} />,
+    );
+    fireEvent.pointerDown(slider(), { button: 0, clientX: xOf(14) });
+    fireEvent.pointerMove(slider(), { clientX: xOf(20) });
+    unmount();
+    expect(calls).toEqual(["start", "end"]);
+  });
+});
+
+/** The slider wired to an edit that is begun and committed around each gesture, as the session does it. */
+function GestureHarness({ start, param }: { start: string; param: ParamId }) {
+  const [state, setState] = useState<{ photo: Photo; shown: string; edit: Edit | null }>({ photo: photo(), shown: start, edit: null });
+  const preview = state.edit ? previewEdit(state.photo, state.edit) : null;
+  const stored = state.photo.versions.find((v) => v.id === state.shown)!;
+  const shown = preview?.version ?? stored;
+  const parentValue = preview ? (preview.parent?.params[param] ?? null) : stored.parentId === null ? null : resetValue(state.photo, stored, param);
+  return (
+    <>
+      <SliderRow
+        def={paramDef(param)}
+        name="Contrast"
+        value={shown.params[param]}
+        parentValue={parentValue}
+        onGestureStart={() => setState((s) => ({ ...s, edit: beginEdit(s.shown, YOU) }))}
+        onGestureEnd={() =>
+          setState((s) => {
+            if (!s.edit) return s;
+            const change = commitEdit(s.photo, s.edit, { name: "Adjusted" });
+            return { photo: change.photo, shown: change.versionId, edit: null };
+          })
+        }
+        onChange={(value) =>
+          setState((s) => {
+            if (s.edit) return { ...s, edit: editParam(s.edit, param, value) };
+            const change = changeParam(s.photo, s.shown, param, value, YOU, { name: "Adjusted" });
+            return { photo: change.photo, shown: change.versionId, edit: null };
+          })
+        }
+      />
+      <output data-testid="shown">{state.shown}</output>
+      <output data-testid="versions">{state.photo.versions.map((v) => v.id).join(" ")}</output>
+    </>
+  );
+}
+
+describe("a drag, with the version rules decided at its end", () => {
+  /** Screen x of a value on the Shadows track, which has the same range as Contrast. */
+  const drag = (...values: number[]) => values.forEach((value) => fireEvent.pointerMove(slider(), { clientX: xOf(value) }));
+
+  it("keeps the person's working copy through the parent's value and out again", () => {
+    // B differs from A only in shadows +10. Its parent has shadows 0.
+    render(<GestureHarness start="p1-b" param="shadows" />);
+    fireEvent.pointerDown(slider(), { button: 0, clientX: xOf(10) });
+    drag(5, 0);
+    // At the parent's value, mid-drag: nothing has been removed.
+    expect(versions()).toBe("original p1-a p1-b");
+    drag(-5, 0, 20);
+    fireEvent.pointerUp(slider(), { clientX: xOf(20) });
+    expect(versions()).toBe("original p1-a p1-b");
+    expect(shown()).toBe("p1-b");
+    expect(slider().getAttribute("aria-valuenow")).toBe("20");
+  });
+
+  it("discards the working copy once, on release, when the drag ends at the parent's value", () => {
+    render(<GestureHarness start="p1-b" param="shadows" />);
+    fireEvent.pointerDown(slider(), { button: 0, clientX: xOf(10) });
+    drag(20, 5, 0);
+    expect(versions()).toBe("original p1-a p1-b");
+    fireEvent.pointerUp(slider(), { clientX: xOf(0) });
+    expect(versions()).toBe("original p1-a");
+    expect(shown()).toBe("p1-a");
+  });
+
+  it("makes no version on an agent's version until the drag is released, then exactly one", () => {
+    render(<GestureHarness start="p1-a" param="contrast" />);
+    fireEvent.pointerDown(slider(), { button: 0, clientX: xOf(14) });
+    drag(20, 30, 40);
+    expect(versions()).toBe("original p1-a p1-b");
+    expect(slider().getAttribute("aria-valuenow")).toBe("40");
+    fireEvent.pointerUp(slider(), { clientX: xOf(40) });
+    expect(versions()).toBe("original p1-a p1-b p1-c");
+    expect(shown()).toBe("p1-c");
+  });
+
+  it("makes nothing when a drag on an agent's version returns to where it started", () => {
+    render(<GestureHarness start="p1-a" param="contrast" />);
+    fireEvent.pointerDown(slider(), { button: 0, clientX: xOf(14) });
+    drag(30, 14);
+    fireEvent.pointerUp(slider(), { clientX: xOf(14) });
+    expect(versions()).toBe("original p1-a p1-b");
     expect(shown()).toBe("p1-a");
   });
 });

@@ -9,7 +9,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef, useState, type ReactNode } from "react";
 import { clampValue, paramDef, type ParamId } from "../model/params";
 import { ORIGINAL_ID, type AgentState, type AgentStatus, type Author, type PageStatus, type Photo, type Shoot } from "../model/types";
-import { addVersion, changeParam } from "../model/versions";
+import { addVersion, beginEdit, changeParam, commitEdit, editParam, previewEdit, type Change, type Edit } from "../model/versions";
 import { startupOptions } from "../platform/query";
 import { SessionContext, type Session } from "../session/Session";
 import { mockLook } from "./filter";
@@ -30,6 +30,8 @@ interface MockState {
   agent: AgentStatus;
   agentTouched: Partial<Record<ParamId, number>>;
   touchCount: number;
+  /** The person's gesture in progress, if any, and the photo it is on. */
+  edit: (Edit & { photoId: string }) | null;
   /** The version the scripted agent is writing, while it is. */
   agentRun: { photoId: string; versionId: string; name: string; rationale: string } | null;
 }
@@ -41,6 +43,8 @@ type Action =
   | { type: "selectVersion"; versionId: string }
   | { type: "togglePick"; versionId: string }
   | { type: "setParam"; id: ParamId; value: number }
+  | { type: "beginEdit" }
+  | { type: "commitEdit" }
   | { type: "agentState"; state: AgentState; detail?: string }
   | { type: "agentNever" }
   | { type: "agentStart"; name: string; rationale: string }
@@ -97,7 +101,23 @@ function show(state: MockState, photoId: string, versionId: string): MockState {
   };
 }
 
+const PERSONS_FORK = { name: "Adjusted" };
+
+/** Puts the outcome of an edit into the state and shows the version it ended on. */
+function applyChange(state: MockState, photo: Photo, change: Change): MockState {
+  if (change.photo === photo) return state;
+  return {
+    ...state,
+    shoot: updatePhoto(state, photo.id, () => change.photo),
+    shown: { ...state.shown, [photo.id]: change.versionId },
+  };
+}
+
 function reduce(state: MockState, action: Action): MockState {
+  // Moving to another photo or version ends a gesture that was left open.
+  if (state.edit && (action.type === "selectPhoto" || action.type === "selectVersion" || action.type === "page")) {
+    return reduce(reduce(state, { type: "commitEdit" }), action);
+  }
   const photo = state.shoot.photos.find((p) => p.id === state.photoId);
 
   switch (action.type) {
@@ -124,18 +144,27 @@ function reduce(state: MockState, action: Action): MockState {
       return { ...state, shoot };
     }
 
+    case "beginEdit":
+      if (!photo || state.edit) return state;
+      return { ...state, edit: { ...beginEdit(shownVersionId(state, photo), { kind: "you" }), photoId: photo.id } };
+
     case "setParam": {
       if (!photo) return state;
-      // The rules live in model/versions: a change to the original, to the
-      // agent's version, or to anything with versions built on it starts a
-      // new version; only the person's own open working copy takes it directly.
-      const change = changeParam(photo, shownVersionId(state, photo), action.id, action.value, { kind: "you" }, { name: "Adjusted" });
-      if (change.photo === photo) return state;
-      return {
-        ...state,
-        shoot: updatePhoto(state, photo.id, () => change.photo),
-        shown: { ...state.shown, [photo.id]: change.versionId },
-      };
+      // Inside a gesture the change is only noted. The photo, its versions,
+      // its pick and everything else stay exactly as they are until the commit.
+      if (state.edit) return { ...state, edit: { ...state.edit, ...editParam(state.edit, action.id, action.value) } };
+      // Outside one, the change is an edit of its own. The rules live in
+      // model/versions: a change to the original, to the agent's version, or
+      // to anything with versions built on it starts a new version.
+      return applyChange(state, photo, changeParam(photo, shownVersionId(state, photo), action.id, action.value, { kind: "you" }, PERSONS_FORK));
+    }
+
+    case "commitEdit": {
+      const edit = state.edit;
+      if (!edit) return state;
+      const edited = state.shoot.photos.find((p) => p.id === edit.photoId);
+      const closed = { ...state, edit: null };
+      return edited ? applyChange(closed, edited, commitEdit(edited, edit, PERSONS_FORK)) : closed;
     }
 
     case "agentState":
@@ -229,6 +258,7 @@ function initialState(): MockState {
     agent: never ? NO_AGENT_YET : { client: MOCK_CLIENT, state: agentState, detail: agentDetail(agentState, first) },
     agentTouched: {},
     touchCount: 0,
+    edit: null,
     agentRun: null,
   };
 }
@@ -276,8 +306,12 @@ export function MockSessionProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const photo = state.shoot.photos.find((p) => p.id === state.photoId) ?? null;
-  const version = photo ? (photo.versions.find((v) => v.id === shownVersionId(state, photo)) ?? null) : null;
-  const parent = photo && version?.parentId ? (photo.versions.find((v) => v.id === version.parentId) ?? null) : null;
+  // While a gesture is open, what is shown is the edit in progress: the
+  // version with the gesture's changes, against the parent it will have.
+  const editing = photo && state.edit?.photoId === photo.id ? previewEdit(photo, state.edit) : null;
+  const stored = photo ? (photo.versions.find((v) => v.id === shownVersionId(state, photo)) ?? null) : null;
+  const version = editing?.version ?? stored;
+  const parent = editing ? editing.parent : photo && stored?.parentId ? (photo.versions.find((v) => v.id === stored.parentId) ?? null) : null;
   const original = photo?.versions[0] ?? null;
 
   // Loading: previews arrive one at a time.
@@ -375,6 +409,8 @@ export function MockSessionProvider({ children }: { children: ReactNode }) {
       selectPhoto: (photoId) => dispatch({ type: "selectPhoto", photoId }),
       selectVersion: (versionId) => dispatch({ type: "selectVersion", versionId }),
       togglePick: (versionId) => dispatch({ type: "togglePick", versionId }),
+      beginEdit: () => dispatch({ type: "beginEdit" }),
+      commitEdit: () => dispatch({ type: "commitEdit" }),
       setParam: (id, value) => dispatch({ type: "setParam", id, value }),
     };
   }, [state, photo, version, parent, histogram]);

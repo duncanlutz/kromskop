@@ -3,14 +3,18 @@ import { ALL_PARAMS, type ParamId } from "./params";
 import type { Author, Params, Photo, Version } from "./types";
 import {
   addVersion,
+  beginEdit,
   changedParams,
   changeParam,
+  commitEdit,
+  editParam,
   hasChildren,
   isChanged,
   letterAt,
   letterIndex,
   nextLetter,
   parentOf,
+  previewEdit,
   resetValue,
   sameAsParent,
 } from "./versions";
@@ -302,5 +306,84 @@ describe("letters and ids", () => {
     const ids = p.versions.map((v) => v.id);
     expect(new Set(ids).size).toBe(ids.length);
     expect(p.versions[p.versions.length - 1]!.letter).toBe("CY");
+  });
+});
+
+describe("a gesture is one edit", () => {
+  it("changes nothing in the photo until it is committed", () => {
+    const p = photo();
+    let edit = beginEdit("p1-b", YOU);
+    edit = editParam(edit, "shadows", 5);
+    edit = editParam(edit, "shadows", 15);
+    // The photo is frozen and was never passed to anything that could return another.
+    expect(previewEdit(p, edit)?.version.params.shadows).toBe(15);
+    expect(p.versions).toHaveLength(4);
+  });
+
+  it("makes exactly one version from a whole drag on an agent's version", () => {
+    const p = photo();
+    let edit = beginEdit("p1-b", YOU);
+    for (const value of [3, 7, 11, 15]) edit = editParam(edit, "shadows", value);
+    const change = commitEdit(p, edit, LABEL);
+    expect(change.forked).toBe(true);
+    expect(change.photo.versions).toHaveLength(5);
+    expect(changedParams(change.photo, byId(change.photo, change.versionId))).toEqual(["shadows"]);
+  });
+
+  it("keeps the same working copy through equality and out again, with its pick", () => {
+    // C differs from A only in contrast +8. The drag passes through 0 and ends at 12.
+    const p = frozen({ ...photo(), pickId: "p1-c" });
+    let edit = beginEdit("p1-c", YOU);
+    for (const value of [4, 0, -3, 0, 6, 12]) edit = editParam(edit, "contrast", value);
+    const change = commitEdit(p, edit, LABEL);
+    expect(change).toMatchObject({ versionId: "p1-c", forked: false, discarded: null });
+    expect(change.photo.pickId).toBe("p1-c");
+    expect(change.photo.versions.map((v) => v.id)).toEqual(["original", "p1-a", "p1-b", "p1-c"]);
+    expect(byId(change.photo, "p1-c").params.contrast).toBe(12);
+  });
+
+  it("discards once when the drag ends at equality", () => {
+    const p = frozen({ ...photo(), pickId: "p1-c" });
+    let edit = beginEdit("p1-c", YOU);
+    for (const value of [4, 12, 3, 0]) edit = editParam(edit, "contrast", value);
+    const change = commitEdit(p, edit, LABEL);
+    expect(change).toMatchObject({ versionId: "p1-a", forked: false, discarded: "p1-c" });
+    expect(change.photo.pickId).toBe("p1-a");
+    expect(change.photo.versions.map((v) => v.id)).toEqual(["original", "p1-a", "p1-b"]);
+  });
+
+  it("does nothing when the gesture ends where it began", () => {
+    const p = photo();
+    let edit = beginEdit("p1-b", YOU);
+    edit = editParam(edit, "temp", 6000);
+    edit = editParam(edit, "temp", 5800);
+    expect(commitEdit(p, edit, LABEL).photo).toBe(p);
+    expect(commitEdit(p, beginEdit("p1-b", YOU), LABEL).photo).toBe(p);
+  });
+
+  it("shows a forking edit against the version it began on", () => {
+    const p = photo();
+    const preview = previewEdit(p, editParam(beginEdit("p1-b", YOU), "shadows", 15))!;
+    // Before the commit it already reads as it will after: one change, from B.
+    expect(preview.parent?.id).toBe("p1-b");
+    expect(ALL_PARAMS.filter((def) => isChanged(preview.version, preview.parent, def.id)).map((def) => def.id)).toEqual(["shadows"]);
+  });
+
+  it("shows an edit of the person's own copy against that copy's parent", () => {
+    const p = photo();
+    const preview = previewEdit(p, editParam(beginEdit("p1-c", YOU), "shadows", 15))!;
+    expect(preview.parent?.id).toBe("p1-a");
+    expect(preview.version.id).toBe("p1-c");
+  });
+
+  it("applies only what the gesture moved, on top of the target as it is at the end", () => {
+    // The agent writes to its own version while the person's gesture on it is still open.
+    const started = addVersion(photo(), "p1-b", AGENT, { name: "Softer" });
+    let edit = beginEdit(started.version.id, YOU);
+    edit = editParam(edit, "shadows", 15);
+    const agentWrote = changeParam(started.photo, started.version.id, "exposure", 0.5, AGENT, LABEL);
+    const change = commitEdit(agentWrote.photo, edit, LABEL);
+    // The person's version is one change from the agent's, not two.
+    expect(changedParams(change.photo, byId(change.photo, change.versionId))).toEqual(["shadows"]);
   });
 });
