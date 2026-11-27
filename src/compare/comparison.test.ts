@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { ORIGINAL_ID, type Photo, type Version } from "../model/types";
+import { ALL_PARAMS, type ParamId } from "../model/params";
+import { ORIGINAL_ID, type Author, type Photo, type Version } from "../model/types";
+import { beginEdit, commitEdit, editParam } from "../model/versions";
 import {
   addToComparison,
   agentMayFocus,
@@ -244,5 +246,28 @@ describe("when the agent must wait", () => {
 
   it("goes ahead when the person is doing neither", () => {
     expect(agentMustWait({ dragging: false, writingNote: false })).toBe(false);
+  });
+});
+
+describe("a gesture on a version the person dropped", () => {
+  const YOU: Author = { kind: "you" };
+  const neutral = () => Object.fromEntries(ALL_PARAMS.map((def) => [def.id, def.neutral])) as Record<ParamId, number>;
+
+  /** A (agent) and D (the person's, contrast +8 on A), with D dropped from the comparison. */
+  function withDroppedCopy(): Photo {
+    const a = { ...version("A"), author: { kind: "agent", client: "Test" } as Author, params: neutral() };
+    const d = { ...version("D"), author: YOU, parentId: a.id, params: { ...neutral(), contrast: 8 } };
+    return { id: "p", versions: [{ ...version(""), params: neutral() }, a, d], droppedIds: [d.id], pickId: d.id, versionsIssued: 4 } as unknown as Photo;
+  }
+
+  it("keeps the copy dropped, and picked, when a drag passes through its parent's value and out again", () => {
+    const p = withDroppedCopy();
+    let edit = beginEdit("p-d", YOU);
+    for (const value of [4, 0, -2, 0, 12]) edit = editParam(edit, "contrast", value);
+    const change = commitEdit(p, edit, { name: "Adjusted" });
+    expect(change).toMatchObject({ versionId: "p-d", forked: false, discarded: null });
+    expect(change.photo.droppedIds).toEqual(["p-d"]);
+    expect(change.photo.pickId).toBe("p-d");
+    expect(standingOf(startComparison(change.photo), change.photo, "p-d")).toBe("dropped");
   });
 });
