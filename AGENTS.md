@@ -10,6 +10,8 @@ Kromskop is dual-licensed MIT OR Apache-2.0, so no GPL or AGPL code may enter th
 - Implement algorithms from papers, specifications (for example the DNG specification) and permissively licensed sources only.
 - When you add an image-processing algorithm, name its source (paper, spec section or permissive project) in a comment at the top of the implementation.
 - LGPL libraries such as LibRaw may be linked as dependencies. Do not vendor modified copies.
+- Do not fit curves, constants or lookup tables to the output of Lightroom or any other proprietary editor, and do not inspect its application bundle, profiles or presets. Kromskop borrows Lightroom's control names, not its measured behaviour.
+- Do not write a file-format decoder from recollection. Work from a published specification, or use a maintained library.
 
 ## Security
 
@@ -22,7 +24,9 @@ Kromskop is dual-licensed MIT OR Apache-2.0, so no GPL or AGPL code may enter th
 
 ## Interface
 
-- Chrome is strictly neutral grey (R = G = B). No tints, gradients, glows or translucency: a coloured surround changes how the photo's colour is perceived.
+- Chrome is neutral grey (R = G = B). No tints, gradients, glows or translucency: a coloured surround changes how the photo's colour is perceived.
+- Colour appears in the chrome only where the colour is the information: the RGB channels of a histogram, the hue swatches of the Colour Mixer, and the two reserved accents (amber for the person's pick, a cool hue for the agent). Keep it small and low in chroma.
+- The interface typeface is IBM Plex Sans, self-hosted. Numbers use tabular figures.
 - Photos have square corners and no shadow. Labels sit beside a photo, not over its pixels.
 - No in-app chat, no sparkle or emoji icons, no cards inside cards.
 - Every screen has designed empty, loading, disconnected and error states.
