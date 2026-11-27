@@ -38,6 +38,16 @@
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+/*
+ * Three landscape photos go two above and one below, which makes each about
+ * half as large again as a row of three. The third sits at the left, where
+ * a fourth version will join it without anything moving. Portrait photos
+ * keep the row of three, which already fills the height.
+ */
+.grid[data-count="3"][data-shape="landscape"] {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .single {
   display: flex;
   flex: 1;

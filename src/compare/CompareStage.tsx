@@ -31,7 +31,7 @@ export function CompareStage() {
       {!enough && <NothingToCompare photo={photo} />}
 
       {enough && mode === "grid" && (
-        <div className={styles.grid} data-count={compared.length}>
+        <div className={styles.grid} data-count={compared.length} data-shape={photo.width > photo.height ? "landscape" : "portrait"}>
           {compared.map((version, index) => (
             <Frame key={version.id} photo={photo}>
               <Viewport photo={photo} layers={[{ version }]} activeId={version.id} />
