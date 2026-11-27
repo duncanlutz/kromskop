@@ -8,6 +8,8 @@ interface SliderRowProps {
   /** Value in the parent version. Null when there is nothing to compare with. */
   parentValue: number | null;
   onChange(value: number): void;
+  /** The name assistive technology reads, when the visible label alone is not enough. */
+  name?: string;
   /** A CSS colour shown as a small chip before the label, where hue is the meaning. */
   swatch?: string;
   /** Goes up each time the agent changes this slider; marks the row briefly. */
@@ -20,7 +22,7 @@ const GRAB_RADIUS = 6;
 /** A press has to travel this far before it counts as a drag. */
 const DRAG_SLOP = 2;
 
-export function SliderRow({ def, value, parentValue, onChange, swatch, agentMark, disabled = false }: SliderRowProps) {
+export function SliderRow({ def, value, parentValue, onChange, name = def.label, swatch, agentMark, disabled = false }: SliderRowProps) {
   const track = useRef<HTMLDivElement>(null);
   const drag = useRef<{ startX: number; lastX: number; position: number; moving: boolean } | null>(null);
   const [dragging, setDragging] = useState(false);
@@ -180,7 +182,7 @@ export function SliderRow({ def, value, parentValue, onChange, swatch, agentMark
         className={styles.track}
         role="slider"
         tabIndex={disabled ? -1 : 0}
-        aria-label={def.label}
+        aria-label={name}
         aria-valuemin={def.min}
         aria-valuemax={def.max}
         aria-valuenow={value}
@@ -209,7 +211,7 @@ export function SliderRow({ def, value, parentValue, onChange, swatch, agentMark
         className={`${styles.field} num`}
         type="text"
         inputMode="decimal"
-        aria-label={`${def.label} value`}
+        aria-label={`${name} value`}
         disabled={disabled}
         value={draft ?? formatted}
         onFocus={(event) => {

@@ -41,11 +41,13 @@ export function AdjustPanel() {
     return marks.length ? Math.max(...marks) : undefined;
   };
 
-  const rows = (defs: ParamDef[]) =>
+  // A mixer row shows only its band, so its name adds the channel: "Red saturation".
+  const rows = (defs: ParamDef[], channelName?: string) =>
     defs.map((def) => (
       <SliderRow
         key={def.id}
         def={def}
+        name={channelName ? `${def.label} ${channelName.toLowerCase()}` : undefined}
         swatch={hueBandOf(def.id) ? `var(--band-${hueBandOf(def.id)})` : undefined}
         value={valueOf(def)}
         parentValue={parentValueOf(def)}
@@ -110,7 +112,7 @@ export function AdjustPanel() {
               </button>
             ))}
           </div>
-          {rows(MIXER_PARAMS[channel])}
+          {rows(MIXER_PARAMS[channel], MIXER_CHANNEL_LABELS[channel])}
         </Group>
       </div>
     </aside>

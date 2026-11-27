@@ -26,7 +26,8 @@ export function Group({ title, open, onToggle, changed, agentMark, disabled = fa
           type="button"
           className={styles.header}
           aria-expanded={expanded}
-          aria-controls={bodyId}
+          // The body is not in the document while the group is closed.
+          aria-controls={expanded ? bodyId : undefined}
           disabled={disabled}
           onClick={onToggle}
         >
