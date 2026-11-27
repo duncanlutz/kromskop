@@ -1,6 +1,18 @@
-import { createContext, useContext } from "react";
+import { createContext, useContext, type ComponentType, type CSSProperties } from "react";
 import type { ParamId } from "../model/params";
 import type { AgentStatus, HistogramData, LoadProgress, PageStatus, Photo, Shoot, Version } from "../model/types";
+
+/** What the interface says when it wants a version of a photo drawn. */
+export interface PreviewProps {
+  photo: Photo;
+  version: Version;
+  /** A small rendering, for the filmstrip and grids, or the full preview. */
+  size?: "full" | "thumbnail";
+  /** For assistive technology. Empty when a label beside it already names the photo. */
+  alt: string;
+  className?: string;
+  style?: CSSProperties;
+}
 
 /**
  * Everything the interface reads and every action it can take.
@@ -24,6 +36,11 @@ export interface Session {
    */
   agentTouched: Readonly<Partial<Record<ParamId, number>>>;
   histogram: HistogramData | null;
+  /**
+   * Draws a version of a photo. The session supplies the component, so no
+   * part of the interface knows how the pixels are made.
+   */
+  Preview: ComponentType<PreviewProps>;
 
   /** The version of a photo that is, or would be, on screen. */
   shownVersion(photo: Photo): Version;

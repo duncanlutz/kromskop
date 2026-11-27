@@ -31,7 +31,7 @@
 }
 
 /* Assess: a thin paper-white frame as a white reference beside the photo. */
-.photo[data-frame] {
+.framed {
   outline: 4px solid #ffffff;
 }
 

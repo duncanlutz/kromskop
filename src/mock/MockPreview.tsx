@@ -6,6 +6,7 @@
 
 import { useId, useMemo, type ImgHTMLAttributes } from "react";
 import type { Params } from "../model/types";
+import type { PreviewProps } from "../session/Session";
 import { mockLook, tableValues } from "./filter";
 
 interface MockPreviewProps extends Omit<ImgHTMLAttributes<HTMLImageElement>, "src"> {
@@ -44,4 +45,9 @@ export function MockPreview({ url, params, asShot, alt, style, ...rest }: MockPr
       />
     </>
   );
+}
+
+/** The mock's answer to the session's Preview: the sample JPEG through the mock look. */
+export function MockSessionPreview({ photo, version, size: _size, ...rest }: PreviewProps) {
+  return <MockPreview url={photo.previewUrl} params={version.params} asShot={photo.versions[0]!.params} {...rest} />;
 }

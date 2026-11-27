@@ -1,5 +1,4 @@
 import { isOriginal } from "../model/types";
-import { MockPreview } from "../mock/MockPreview";
 import { useSession } from "../session/Session";
 import { usePrefs } from "../shell/Prefs";
 import { useElementSize } from "../ui/useElementSize";
@@ -23,7 +22,7 @@ function fit(space: { width: number; height: number }, photo: { width: number; h
  * over the pixels; everything about the photo is written in the line below.
  */
 export function Viewer() {
-  const { status, shoot, photo, version, progress } = useSession();
+  const { status, shoot, photo, version, progress, Preview } = useSession();
   const { surround } = usePrefs();
   const [stage, space] = useElementSize<HTMLDivElement>();
 
@@ -67,14 +66,12 @@ export function Viewer() {
         )}
 
         {status === "ready" && photo && version && original && size && (
-          <MockPreview
-            className={styles.photo}
-            url={photo.previewUrl}
-            params={version.params}
-            asShot={original.params}
+          <Preview
+            className={surround.frame ? `${styles.photo} ${styles.framed}` : styles.photo}
+            photo={photo}
+            version={version}
             alt={`${photo.fileName}, ${version.name}`}
             style={{ width: size.width, height: size.height }}
-            data-frame={surround.frame || undefined}
           />
         )}
       </div>

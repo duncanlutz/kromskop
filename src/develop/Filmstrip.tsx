@@ -1,4 +1,3 @@
-import { MockPreview } from "../mock/MockPreview";
 import type { Photo } from "../model/types";
 import { useSession } from "../session/Session";
 import styles from "./Filmstrip.module.css";
@@ -19,7 +18,7 @@ const stem = (fileName: string) => fileName.replace(/\.[^.]+$/, "");
  * made versions nobody has looked at.
  */
 export function Filmstrip() {
-  const { status, shoot, photo, progress, selectPhoto, shownVersion } = useSession();
+  const { status, shoot, photo, progress, selectPhoto, shownVersion, Preview } = useSession();
   const photos = shoot?.photos ?? [];
   const picked = photos.filter((p) => p.pickId !== null).length;
   const unseen = photos.filter((p) => p.versions.some((v) => !v.seen)).length;
@@ -72,11 +71,11 @@ export function Filmstrip() {
               >
                 <span className={styles.window}>
                   {ready ? (
-                    <MockPreview
+                    <Preview
                       className={styles.frame}
-                      url={item.previewUrl}
-                      params={status === "ready" ? shownVersion(item).params : original.params}
-                      asShot={original.params}
+                      photo={item}
+                      version={status === "ready" ? shownVersion(item) : original}
+                      size="thumbnail"
                       alt=""
                       style={size}
                     />

@@ -13,6 +13,7 @@ import { addVersion, changeParam } from "../model/versions";
 import { SessionContext, type Session } from "../session/Session";
 import { mockLook } from "./filter";
 import { countLevels, loadPixels } from "./histogram";
+import { MockSessionPreview } from "./MockPreview";
 import { buildMockShoot, FIRST_PHOTO_ID, FIRST_VERSION_ID, MOCK_CLIENT } from "./shoot";
 
 /* ---------- state ---------- */
@@ -364,6 +365,7 @@ export function MockSessionProvider({ children }: { children: ReactNode }) {
       agent: state.agent,
       agentTouched: state.agentTouched,
       histogram: ready ? histogram : null,
+      Preview: MockSessionPreview,
       shownVersion: (p) => p.versions.find((v) => v.id === shownVersionId(state, p)) ?? p.versions[0]!,
       openFolder: () => {
         finishLoading.current = true;
