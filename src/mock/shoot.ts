@@ -88,6 +88,7 @@ function buildPhoto(spec: PhotoSpec): Photo {
     height: spec.height,
     capture: spec.capture,
     versions,
+    versionsIssued: versions.length - 1,
     pickId: spec.pick ? idOf(spec.pick) : null,
   };
 }

@@ -1,7 +1,19 @@
 import { describe, expect, it } from "vitest";
 import { ALL_PARAMS, type ParamId } from "./params";
 import type { Author, Params, Photo, Version } from "./types";
-import { addVersion, changedParams, changeParam, hasChildren, isChanged, nextLetter, parentOf, resetValue, sameAsParent } from "./versions";
+import {
+  addVersion,
+  changedParams,
+  changeParam,
+  hasChildren,
+  isChanged,
+  letterAt,
+  letterIndex,
+  nextLetter,
+  parentOf,
+  resetValue,
+  sameAsParent,
+} from "./versions";
 
 const AGENT: Author = { kind: "agent", client: "Test Agent" };
 const YOU: Author = { kind: "you" };
@@ -226,7 +238,7 @@ describe("a working copy that says nothing", () => {
   });
 });
 
-describe("letters", () => {
+describe("letters and ids", () => {
   it("gives each new version the next letter", () => {
     const p = photo();
     expect(nextLetter(p)).toBe("D");
@@ -238,5 +250,57 @@ describe("letters", () => {
   it("marks an agent's new version as not yet seen", () => {
     expect(addVersion(photo(), "p1-a", AGENT, LABEL).version.seen).toBe(false);
     expect(addVersion(photo(), "p1-a", YOU, LABEL).version.seen).toBe(true);
+  });
+
+  it("never reuses a letter or an id after a discard", () => {
+    // Fork D from B, fork E from A, reset D so it is discarded, then drag on C.
+    let p = photo();
+    const d = changeParam(p, "p1-b", "shadows", 15, YOU, LABEL);
+    expect(d.versionId).toBe("p1-d");
+    const e = changeParam(d.photo, "p1-a", "contrast", 10, YOU, LABEL);
+    expect(e.versionId).toBe("p1-e");
+    const reset = changeParam(e.photo, "p1-d", "shadows", 0, YOU, LABEL);
+    expect(reset.discarded).toBe("p1-d");
+    // C is the person's own, with E's parent A as its parent; building on it forks only if it has children.
+    const built = addVersion(reset.photo, "p1-c", AGENT, { name: "Built on yours" });
+    p = built.photo;
+    expect(built.version.letter).toBe("F");
+    const next = changeParam(p, "p1-c", "blacks", 5, YOU, LABEL);
+    expect(next.forked).toBe(true);
+    expect(next.versionId).toBe("p1-g");
+
+    const ids = next.photo.versions.map((v) => v.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    const lettersInUse = next.photo.versions.filter((v) => v.letter).map((v) => v.letter);
+    expect(lettersInUse).toEqual(["A", "B", "C", "E", "F", "G"]);
+  });
+
+  it("does not hand a discarded letter to the very next version", () => {
+    const p = photo();
+    const d = changeParam(p, "p1-b", "shadows", 15, YOU, LABEL);
+    const reset = changeParam(d.photo, "p1-d", "shadows", 0, YOU, LABEL);
+    expect(reset.photo.versions.map((v) => v.letter)).toEqual(["", "A", "B", "C"]);
+    expect(nextLetter(reset.photo)).toBe("E");
+    expect(changeParam(reset.photo, "p1-b", "whites", 4, YOU, LABEL).versionId).toBe("p1-e");
+  });
+
+  it("carries on past Z with AA, AB and so on", () => {
+    expect(letterAt(0)).toBe("A");
+    expect(letterAt(25)).toBe("Z");
+    expect(letterAt(26)).toBe("AA");
+    expect(letterAt(27)).toBe("AB");
+    expect(letterAt(51)).toBe("AZ");
+    expect(letterAt(52)).toBe("BA");
+    expect(letterAt(701)).toBe("ZZ");
+    expect(letterAt(702)).toBe("AAA");
+    for (const index of [0, 1, 25, 26, 27, 51, 52, 700, 701, 702, 5000]) expect(letterIndex(letterAt(index))).toBe(index);
+  });
+
+  it("keeps ids unique across a hundred versions", () => {
+    let p = photo();
+    for (let i = 0; i < 100; i++) p = addVersion(p, "p1-a", AGENT, LABEL).photo;
+    const ids = p.versions.map((v) => v.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(p.versions[p.versions.length - 1]!.letter).toBe("CY");
   });
 });

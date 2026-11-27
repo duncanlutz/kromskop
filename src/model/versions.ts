@@ -10,15 +10,46 @@
  * A person's working copy that ends up equal to its parent says nothing, so
  * it is discarded, unless something has been built on it.
  *
+ * A letter, and the id made from it, is never issued twice for one photo,
+ * not even after the version that had it was discarded.
+ *
  * Nothing here changes its arguments.
  */
 
 import { ALL_PARAMS, type ParamId } from "./params";
 import type { Author, Photo, Version } from "./types";
 
-/** The letter the photo's next version will take: A, B, C… */
+/**
+ * The letter for the nth version of a photo, counting from zero: A to Z,
+ * then AA, AB and so on, the way spreadsheet columns are named. A photo
+ * with more than 26 versions is unlikely but must not break anything.
+ */
+export function letterAt(index: number): string {
+  let letters = "";
+  for (let n = index; n >= 0; n = Math.floor(n / 26) - 1) letters = String.fromCharCode(65 + (n % 26)) + letters;
+  return letters;
+}
+
+/** The position of a letter in that sequence: A is 0, Z is 25, AA is 26. */
+export function letterIndex(letter: string): number {
+  let index = 0;
+  for (const char of letter) index = index * 26 + (char.charCodeAt(0) - 64);
+  return index - 1;
+}
+
+/**
+ * How many letters the photo has issued. The photo keeps the count, so a
+ * discarded version's letter is not handed out again; the letters in use
+ * are a floor for photos recorded before the count existed.
+ */
+export function lettersIssued(photo: Photo): number {
+  const inUse = photo.versions.reduce((highest, v) => (v.letter ? Math.max(highest, letterIndex(v.letter) + 1) : highest), 0);
+  return Math.max(photo.versionsIssued ?? 0, inUse);
+}
+
+/** The letter the photo's next version will take: the one after the highest ever issued. */
 export function nextLetter(photo: Photo): string {
-  return String.fromCharCode(65 + photo.versions.filter((v) => v.letter).length);
+  return letterAt(lettersIssued(photo));
 }
 
 export function parentOf(photo: Photo, version: Version): Version | null {
@@ -63,7 +94,8 @@ export interface ForkLabel {
 export function addVersion(photo: Photo, parentId: string, by: Author, label: ForkLabel): { photo: Photo; version: Version } {
   const parent = photo.versions.find((v) => v.id === parentId);
   if (!parent) throw new Error(`No version ${parentId} to build on`);
-  const letter = nextLetter(photo);
+  const issued = lettersIssued(photo);
+  const letter = letterAt(issued);
   const version: Version = {
     id: `${photo.id}-${letter.toLowerCase()}`,
     letter,
@@ -74,7 +106,7 @@ export function addVersion(photo: Photo, parentId: string, by: Author, label: Fo
     params: parent.params,
     seen: label.seen ?? by.kind === "you",
   };
-  return { photo: { ...photo, versions: [...photo.versions, version] }, version };
+  return { photo: { ...photo, versions: [...photo.versions, version], versionsIssued: issued + 1 }, version };
 }
 
 export interface Change {

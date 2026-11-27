@@ -43,6 +43,12 @@ export interface Photo {
   capture: CaptureInfo;
   /** The original first, then versions oldest to newest. */
   versions: Version[];
+  /**
+   * How many lettered versions this photo has ever had, including any since
+   * discarded. The next version takes the letter after that, so a letter
+   * and its id are never used twice.
+   */
+  versionsIssued: number;
   /** The version the person picked, if any. */
   pickId: string | null;
 }
