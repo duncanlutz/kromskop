@@ -11,6 +11,7 @@ import {
   type ParamId,
 } from "../model/params";
 import { isOriginal } from "../model/types";
+import { isChanged, resetValue } from "../model/versions";
 import { useSession } from "../session/Session";
 import { SliderRow } from "../ui/SliderRow";
 import { tabKeys } from "../ui/tabKeys";
@@ -24,7 +25,7 @@ type GroupId = "light" | "colour" | "curve" | "mixer";
 const ALL_MIXER_PARAMS = MIXER_CHANNELS.flatMap((channel) => MIXER_PARAMS[channel]);
 
 export function AdjustPanel() {
-  const { status, version, parent, agentTouched, histogram, setParam } = useSession();
+  const { status, photo, version, parent, agentTouched, histogram, setParam } = useSession();
   const [open, setOpen] = useState<Record<GroupId, boolean>>({ light: true, colour: true, curve: true, mixer: true });
   const [channel, setChannel] = useState<MixerChannel>("sat");
 
@@ -32,9 +33,9 @@ export function AdjustPanel() {
   const disabled = status !== "ready" || !version;
 
   const valueOf = (def: ParamDef) => version?.params[def.id] ?? def.neutral;
-  const parentValueOf = (def: ParamDef) => parent?.params[def.id] ?? null;
-  const isChanged = (def: ParamDef) => !!version && !!parent && version.params[def.id] !== parent.params[def.id];
-  const countChanged = (defs: ParamDef[]) => defs.filter(isChanged).length;
+  // What counts as changed, and what Reset restores, are the model's rules.
+  const parentValueOf = (def: ParamDef) => (photo && version && parent ? resetValue(photo, version, def.id) : null);
+  const countChanged = (defs: ParamDef[]) => defs.filter((def) => !!version && isChanged(version, parent, def.id)).length;
   /** The latest agent mark among these controls, if any. */
   const markOf = (defs: ParamDef[]) => {
     const marks = defs.map((def) => agentTouched[def.id]).filter((mark) => mark !== undefined);
