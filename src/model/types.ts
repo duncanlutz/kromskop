@@ -85,6 +85,70 @@ export interface LoadProgress {
   total: number;
 }
 
+/**
+ * A place on a photo, as fractions of its width and height so it holds at
+ * any zoom. A point is a region with no width and no height.
+ */
+export interface Region {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export function isPoint(region: Region): boolean {
+  return region.width === 0 && region.height === 0;
+}
+
+/**
+ * Where a note stands. The agent is not told about notes as they are
+ * written; it receives them when it next asks, so "waiting" can last.
+ */
+export type NoteState =
+  | { kind: "waiting" }
+  | { kind: "read" }
+  | { kind: "addressed"; versionId: string }
+  /** Something the agent pointed at that the person chose to keep. */
+  | { kind: "kept" };
+
+/** A short comment pinned to a region of one version. Not a conversation. */
+export interface Note {
+  id: string;
+  /** Counted per photo, in the order notes were made. Shown on the marker. */
+  number: number;
+  versionId: string;
+  region: Region;
+  /** Untrusted when it comes from the agent. Render as text only. */
+  text: string;
+  author: Author;
+  state: NoteState;
+}
+
+/** The agent drawing attention to a region. It fades unless kept as a note. */
+export interface AgentPointer {
+  id: number;
+  versionId: string;
+  region: Region;
+  /** One line from the agent. Untrusted text. */
+  caption: string;
+  /** How long it stays before it has faded, in milliseconds. */
+  lifetime: number;
+}
+
+/**
+ * The agent asking Compare to look somewhere. The interface decides whether
+ * to obey: it never does while a person is dragging.
+ */
+export interface AgentViewRequest {
+  /** Goes up with each request, so the same request is not applied twice. */
+  stamp: number;
+  focusVersionId?: string;
+  /** Centre of the view, as fractions of the photo. */
+  centre?: { x: number; y: number };
+  /** Zoom as a multiple of the size that fits the tile. */
+  magnification?: number;
+}
+
 export const ORIGINAL_ID = "original";
 
 export function isOriginal(version: Version): boolean {
