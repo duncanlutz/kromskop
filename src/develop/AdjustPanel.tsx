@@ -13,6 +13,7 @@ import {
 import { isOriginal } from "../model/types";
 import { useSession } from "../session/Session";
 import { SliderRow } from "../ui/SliderRow";
+import { tabKeys } from "../ui/tabKeys";
 import styles from "./AdjustPanel.module.css";
 import { Group } from "./Group";
 import { Histogram } from "./Histogram";
@@ -92,7 +93,7 @@ export function AdjustPanel() {
           agentMark={markOf(ALL_MIXER_PARAMS)}
           disabled={status === "empty"}
         >
-          <div className={styles.tabs} role="tablist" aria-label="Mixer channel">
+          <div className={styles.tabs} role="tablist" aria-label="Mixer channel" onKeyDown={tabKeys(MIXER_CHANNELS, channel, setChannel)}>
             {MIXER_CHANNELS.map((id) => (
               <button
                 key={id}
@@ -100,6 +101,7 @@ export function AdjustPanel() {
                 role="tab"
                 className={styles.tab}
                 aria-selected={id === channel}
+                tabIndex={id === channel ? 0 : -1}
                 disabled={disabled}
                 onClick={() => setChannel(id)}
               >
