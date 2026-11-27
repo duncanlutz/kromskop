@@ -1,4 +1,5 @@
 import { Popover } from "@base-ui/react/popover";
+import { useRef } from "react";
 import { useSession } from "../session/Session";
 import { AgentIndicator, agentLabel } from "./AgentIndicator";
 import styles from "./AgentStatusItem.module.css";
@@ -15,6 +16,8 @@ export function AgentStatusItem() {
   const { agent } = useSession();
   const label = agentLabel(agent);
   const connected = agent.state !== "disconnected";
+  // How the popover was opened decides where focus goes when it closes.
+  const openedByPointer = useRef(false);
 
   return (
     <Popover.Root>
@@ -22,6 +25,12 @@ export function AgentStatusItem() {
         className={styles.item}
         data-state={agent.state}
         aria-label={agent.client ? `Agent: ${agent.client}, ${label}` : `Agent: ${label}`}
+        onPointerDown={() => {
+          openedByPointer.current = true;
+        }}
+        onKeyDown={() => {
+          openedByPointer.current = false;
+        }}
       >
         <AgentIndicator state={agent.state} />
         {agent.client && <span className={styles.client}>{agent.client}</span>}
@@ -29,7 +38,13 @@ export function AgentStatusItem() {
       </Popover.Trigger>
       <Popover.Portal>
         <Popover.Positioner side="bottom" align="end" sideOffset={8} collisionPadding={8}>
-          <Popover.Popup className={styles.popup}>
+          <Popover.Popup
+            className={styles.popup}
+            // Opened from the keyboard, focus returns to the trigger on
+            // closing, as usual. Opened with a pointer, it is let go, so the
+            // next Space reaches the page rather than opening this again.
+            finalFocus={() => !openedByPointer.current}
+          >
             {agent.client ? (
               <>
                 <Popover.Title className={styles.title}>{agent.client}</Popover.Title>

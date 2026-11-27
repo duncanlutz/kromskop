@@ -74,16 +74,33 @@ describe("after keyboard activation", () => {
 });
 
 describe("Escape", () => {
-  it("lets go of a button, a tab and a slider", () => {
+  /** Makes an element report focus as shown or not, as the browser would for keyboard or pointer focus. */
+  function withVisibleFocus(element: HTMLElement, visible: boolean) {
+    const matches = element.matches.bind(element);
+    Object.defineProperty(element, "matches", { value: (selector: string) => (selector === ":focus-visible" ? visible : matches(selector)) });
+  }
+
+  it("lets go of a control a pointer left focused", () => {
     for (const html of ["<button>Fit</button>", '<div role="tab" tabindex="0">Flip</div>', '<div role="slider" tabindex="0"></div>']) {
       const control = mount(html);
+      withVisibleFocus(control, false);
       escape(control);
       expect(document.activeElement).toBe(document.body);
     }
   });
 
+  it("leaves a keyboard user where they are, so the next Tab carries on from there", () => {
+    for (const html of ["<button>Fit</button>", '<div role="tab" tabindex="0">Flip</div>', '<div role="slider" tabindex="0"></div>']) {
+      const control = mount(html);
+      withVisibleFocus(control, true);
+      escape(control);
+      expect(document.activeElement).toBe(control);
+    }
+  });
+
   it("leaves a text field to cancel its own edit", () => {
     const field = mount('<input type="text">');
+    withVisibleFocus(field, false);
     escape(field);
     expect(document.activeElement).toBe(field);
   });
