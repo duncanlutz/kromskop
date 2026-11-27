@@ -28,6 +28,7 @@ import { SessionContext, type Session } from "../session/Session";
 import { mockLook } from "./filter";
 import { countLevels, loadPixels } from "./histogram";
 import { MockSessionPreview } from "./MockPreview";
+import { MockSessionPixels } from "./MockVersionCanvas";
 import {
   buildMockNotes,
   buildMockShoot,
@@ -634,6 +635,7 @@ export function MockSessionProvider({ children }: { children: ReactNode }) {
       agentTouched: state.agentTouched,
       histogram: ready ? histogram : null,
       Preview: MockSessionPreview,
+      Pixels: MockSessionPixels,
       notes: ready ? notes : [],
       agentPointer: ready ? pointer : null,
       agentView: state.agentView,

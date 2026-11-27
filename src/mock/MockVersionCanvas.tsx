@@ -6,6 +6,7 @@
 
 import { useEffect, useMemo, useRef, type CSSProperties } from "react";
 import type { Params, Photo } from "../model/types";
+import type { PixelsProps } from "../session/Session";
 import { bakedPreview } from "./bake";
 import { mockLook } from "./filter";
 
@@ -45,4 +46,9 @@ export function MockVersionCanvas({ photo, params, className, style }: MockVersi
   }, [photo.previewUrl, key, look]);
 
   return <canvas ref={canvas} className={className} style={style} role="img" aria-label={photo.fileName} />;
+}
+
+/** The mock's answer to the session's Pixels. */
+export function MockSessionPixels({ photo, version, ...rest }: PixelsProps) {
+  return <MockVersionCanvas photo={photo} params={version.params} {...rest} />;
 }

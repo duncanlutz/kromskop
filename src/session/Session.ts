@@ -26,6 +26,15 @@ export interface PreviewProps {
   style?: CSSProperties;
 }
 
+/** What Compare says when it wants a version's pixels to zoom and pan. */
+export interface PixelsProps {
+  photo: Photo;
+  version: Version;
+  className?: string;
+  /** Compare lays the surface out once and then only transforms it. */
+  style?: CSSProperties;
+}
+
 /**
  * Everything the interface reads and every action it can take.
  *
@@ -53,6 +62,11 @@ export interface Session {
    * part of the interface knows how the pixels are made.
    */
   Preview: ComponentType<PreviewProps>;
+  /**
+   * A version at the preview's full resolution, on a surface that can be
+   * scaled and moved freely without being drawn again.
+   */
+  Pixels: ComponentType<PixelsProps>;
 
   /** Notes on the current photo, oldest first. */
   notes: readonly Note[];

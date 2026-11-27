@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState, type CSSProperties, type PointerEvent, type ReactNode } from "react";
-import { MockVersionCanvas } from "../mock/MockVersionCanvas";
 import { isPoint, type Photo, type Region, type Version } from "../model/types";
 import { useSession } from "../session/Session";
 import { useElementSize } from "../ui/useElementSize";
@@ -186,7 +185,7 @@ export function Viewport({ photo, layers, activeId, children }: ViewportProps) {
               {rendering ? (
                 <div className={styles.pending} style={frameStyle(at)} />
               ) : (
-                <MockVersionCanvas photo={photo} params={layer.version.params} className={styles.pixels} style={pixelStyle(at, photo)} />
+                <session.Pixels photo={photo} version={layer.version} className={styles.pixels} style={pixelStyle(at, photo)} />
               )}
             </div>
           );
