@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { ALL_PARAMS, type ParamId } from "./params";
 import type { Author, Params, Photo, Version } from "./types";
-import { addVersion, changedParams, changeParam, hasChildren, isChanged, nextLetter, parentOf, resetValue } from "./versions";
+import { addVersion, changedParams, changeParam, hasChildren, isChanged, nextLetter, parentOf, resetValue, sameAsParent } from "./versions";
 
 const AGENT: Author = { kind: "agent", client: "Test Agent" };
 const YOU: Author = { kind: "you" };
@@ -168,6 +168,61 @@ describe("changing a version", () => {
     expect(() => changeParam(p, "p1-a", "contrast", 1, YOU, LABEL)).not.toThrow();
     expect(() => addVersion(p, "p1-a", AGENT, LABEL)).not.toThrow();
     expect(byId(p, "p1-c").params.contrast).toBe(8);
+  });
+});
+
+describe("a working copy that says nothing", () => {
+  it("is discarded when a reset undoes its only change, and the parent is shown", () => {
+    const p = photo();
+    // C differs from A only in contrast.
+    const reset = changeParam(p, "p1-c", "contrast", resetValue(p, byId(p, "p1-c"), "contrast"), YOU, LABEL);
+    expect(reset).toMatchObject({ versionId: "p1-a", forked: false, discarded: "p1-c" });
+    expect(reset.photo.versions.map((v) => v.id)).toEqual(["original", "p1-a", "p1-b"]);
+  });
+
+  it("is discarded when a drag on an agent's version is followed by a reset", () => {
+    // A drifting double-click: the first press drags Temp and starts D, the reset puts Temp back.
+    const p = photo();
+    const dragged = changeParam(p, "p1-b", "temp", 5850, YOU, LABEL);
+    expect(dragged.forked).toBe(true);
+    const made = byId(dragged.photo, dragged.versionId);
+    const reset = changeParam(dragged.photo, made.id, "temp", resetValue(dragged.photo, made, "temp"), YOU, LABEL);
+    expect(reset).toMatchObject({ versionId: "p1-b", discarded: made.id });
+    // Nothing is left behind: the photo is as it was.
+    expect(reset.photo.versions).toEqual(p.versions);
+  });
+
+  it("stays while it still differs from its parent in something", () => {
+    const p = photo();
+    const two = changeParam(p, "p1-c", "shadows", 10, YOU, LABEL);
+    const reset = changeParam(two.photo, "p1-c", "shadows", 0, YOU, LABEL);
+    expect(reset).toMatchObject({ versionId: "p1-c", discarded: null });
+    expect(changedParams(reset.photo, byId(reset.photo, "p1-c"))).toEqual(["contrast"]);
+  });
+
+  it("stays when something has been built on it", () => {
+    const built = addVersion(photo(), "p1-c", AGENT, { name: "Built on yours" });
+    const p = frozen(changeParam(built.photo, built.version.id, "exposure", 0.5, AGENT, LABEL).photo);
+    // Changing C now starts a new version; C itself cannot be emptied or removed.
+    const change = changeParam(p, "p1-c", "contrast", 0, YOU, LABEL);
+    expect(change.discarded).toBeNull();
+    expect(byId(change.photo, "p1-c")).toBe(byId(p, "p1-c"));
+  });
+
+  it("hands a pick on to the parent, which looks the same", () => {
+    const p = frozen({ ...photo(), pickId: "p1-c" });
+    const reset = changeParam(p, "p1-c", "contrast", 0, YOU, LABEL);
+    expect(reset.discarded).toBe("p1-c");
+    expect(reset.photo.pickId).toBe("p1-a");
+  });
+
+  it("never discards an agent's version, which starts out equal to its parent", () => {
+    const started = addVersion(photo(), "p1-b", AGENT, { name: "Softer" });
+    expect(sameAsParent(started.photo, started.version)).toBe(true);
+    const first = changeParam(started.photo, started.version.id, "exposure", 0.5, AGENT, LABEL);
+    const back = changeParam(first.photo, first.versionId, "exposure", 0.2, AGENT, LABEL);
+    expect(back.discarded).toBeNull();
+    expect(byId(back.photo, started.version.id)).toBeDefined();
   });
 });
 

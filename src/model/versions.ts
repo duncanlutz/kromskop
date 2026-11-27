@@ -7,6 +7,9 @@
  * open working copy, with nothing built on it, takes a change directly, and
  * even then as a new snapshot object rather than a mutation.
  *
+ * A person's working copy that ends up equal to its parent says nothing, so
+ * it is discarded, unless something has been built on it.
+ *
  * Nothing here changes its arguments.
  */
 
@@ -76,9 +79,32 @@ export function addVersion(photo: Photo, parentId: string, by: Author, label: Fo
 
 export interface Change {
   photo: Photo;
-  /** The version that now holds the change: the same one, or a new one. */
+  /**
+   * The version to show after the change: the one changed, a new one made
+   * for it, or the parent when the change emptied a working copy.
+   */
   versionId: string;
   forked: boolean;
+  /** Id of a working copy the change left equal to its parent, and so removed. */
+  discarded: string | null;
+}
+
+/** True when a version differs from its parent in nothing. */
+export function sameAsParent(photo: Photo, version: Version): boolean {
+  const parent = parentOf(photo, version);
+  return parent !== null && ALL_PARAMS.every((def) => version.params[def.id] === parent.params[def.id]);
+}
+
+/**
+ * Removes a version that has become equal to its parent. Anything that
+ * pointed at it points at the parent instead, which looks the same.
+ */
+function discard(photo: Photo, version: Version): Photo {
+  return {
+    ...photo,
+    versions: photo.versions.filter((v) => v.id !== version.id),
+    pickId: photo.pickId === version.id ? version.parentId : photo.pickId,
+  };
 }
 
 /**
@@ -87,15 +113,23 @@ export interface Change {
  * It starts a new version when the target is the original, is someone
  * else's, or already has versions built on it. Otherwise the author's own
  * working copy is replaced by a new snapshot under the same id.
+ *
+ * When that leaves a person's working copy equal to its parent, as a reset
+ * of its only change does, the copy is discarded and the parent is what to
+ * show: an "Adjusted" version that adjusts nothing should not exist.
  */
 export function changeParam(photo: Photo, versionId: string, id: ParamId, value: number, by: Author, fork: ForkLabel): Change {
   const target = photo.versions.find((v) => v.id === versionId);
-  if (!target || target.params[id] === value) return { photo, versionId, forked: false };
+  if (!target || target.params[id] === value) return { photo, versionId, forked: false, discarded: null };
 
   const ownWorkingCopy = sameAuthor(target.author, by) && !hasChildren(photo, versionId);
   if (ownWorkingCopy) {
     const next: Version = { ...target, params: { ...target.params, [id]: value } };
-    return { photo: { ...photo, versions: photo.versions.map((v) => (v.id === versionId ? next : v)) }, versionId, forked: false };
+    const changed: Photo = { ...photo, versions: photo.versions.map((v) => (v.id === versionId ? next : v)) };
+    if (by.kind === "you" && next.parentId !== null && sameAsParent(changed, next)) {
+      return { photo: discard(changed, next), versionId: next.parentId, forked: false, discarded: next.id };
+    }
+    return { photo: changed, versionId, forked: false, discarded: null };
   }
 
   const added = addVersion(photo, versionId, by, fork);
@@ -104,5 +138,6 @@ export function changeParam(photo: Photo, versionId: string, id: ParamId, value:
     photo: { ...added.photo, versions: added.photo.versions.map((v) => (v.id === changed.id ? changed : v)) },
     versionId: changed.id,
     forked: true,
+    discarded: null,
   };
 }
