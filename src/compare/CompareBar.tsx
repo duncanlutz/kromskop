@@ -1,5 +1,6 @@
 import { X } from "@phosphor-icons/react";
 import { useSession } from "../session/Session";
+import { YIELDS_WHEN_CHOSEN_ATTRIBUTE } from "../ui/keys";
 import { tabKeys } from "../ui/tabKeys";
 import { Tooltip } from "../ui/Tooltip";
 import { COMPARE_MODES, useCompare, useCompareView } from "./CompareState";
@@ -27,6 +28,8 @@ export function CompareBar() {
         className={styles.modes}
         role="tablist"
         aria-label="Layout"
+        // Space on the layout already in use swaps the pair, as it does elsewhere in Compare.
+        {...{ [YIELDS_WHEN_CHOSEN_ATTRIBUTE]: "" }}
         onKeyDown={tabKeys(
           COMPARE_MODES.map((option) => option.id),
           compare.mode,

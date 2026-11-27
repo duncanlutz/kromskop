@@ -25,13 +25,19 @@ describe("belongsToControl", () => {
     expect(press('<input type="checkbox">', " ")).toBe(true);
   });
 
-  it("gives Space and Enter back to the page on the tab or option that is already chosen", () => {
-    expect(press('<div role="tab" aria-selected="true" tabindex="0">Flip</div>', " ")).toBe(false);
-    expect(press('<div role="tab" aria-selected="true" tabindex="0">Flip</div>', "Enter")).toBe(false);
-    expect(press('<button role="radio" aria-checked="true">Picks</button>', " ")).toBe(false);
-    // One that is not chosen still gets the key, so a keyboard user can choose it.
-    expect(press('<div role="tab" aria-selected="false" tabindex="0">Split</div>', " ")).toBe(true);
-    expect(press('<button role="radio" aria-checked="false">Original</button>', "Enter")).toBe(true);
+  it("gives Space and Enter back to the page on the chosen tab of a row that asks for it", () => {
+    const row = (selected: boolean) => `<div role="tablist" data-chosen-tab-yields-keys><div role="tab" aria-selected="${selected}" tabindex="0">Flip</div></div>`;
+    expect(press(row(true), " ", "[role=tab]")).toBe(false);
+    expect(press(row(true), "Enter", "[role=tab]")).toBe(false);
+    // A tab in that row that is not chosen still gets the key, so a keyboard user can choose it.
+    expect(press(row(false), " ", "[role=tab]")).toBe(true);
+  });
+
+  it("keeps Space and Enter for every other chosen control", () => {
+    // The checked surround chip, a checked version radio, the current view's tab.
+    expect(press('<button role="radio" aria-checked="true">Dark surround</button>', " ")).toBe(true);
+    expect(press('<button role="radio" aria-checked="true">Picks</button>', "Enter")).toBe(true);
+    expect(press('<div role="tablist"><div role="tab" aria-selected="true" tabindex="0">Compare</div></div>', " ", "[role=tab]")).toBe(true);
   });
 
   it("counts a press on something inside a button as the button's", () => {
