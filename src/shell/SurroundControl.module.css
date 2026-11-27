@@ -1,0 +1,52 @@
+.group {
+  display: flex;
+  align-items: center;
+}
+
+.caption {
+  margin-right: var(--space-8);
+  color: var(--text-tertiary);
+  font-size: var(--size-11);
+  line-height: var(--leading-11);
+  letter-spacing: var(--tracking-small);
+}
+
+.option {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 24px;
+}
+
+/* Square, like a paper chip. The hairline keeps black visible on the bar. */
+.chip {
+  width: 12px;
+  height: 12px;
+  box-shadow: 0 0 0 1px var(--hairline-strong);
+}
+
+/* Assess has a white frame; its chip shows that in miniature. */
+.chip[data-frame] {
+  box-shadow:
+    inset 0 0 0 2px #ffffff,
+    0 0 0 1px var(--hairline-strong);
+}
+
+.option:hover .chip {
+  outline: 1px solid var(--text-tertiary);
+  outline-offset: 2px;
+}
+
+.option[aria-checked="true"] .chip {
+  outline: 1px solid var(--selection);
+  outline-offset: 2px;
+}
+
+.option:focus-visible {
+  outline: none;
+}
+
+.option:focus-visible .chip {
+  outline: 1px solid var(--focus-ring);
+  outline-offset: 2px;
+}
