@@ -6,7 +6,8 @@
  * arrows walk its row, where the person expected the page's own shortcuts.
  * So a control that was clicked with a pointer gives focus back, as buttons
  * do in a desktop app. A control reached with the keyboard keeps it, and can
- * still be activated with Space or Return. Escape lets go of any control.
+ * still be activated with Space or Return. Escape lets go of a control that
+ * a pointer left focused, and leaves a keyboard user where they are.
  */
 
 const PRESSED = 'button, a[href], summary, [role="button"], [role="tab"], [role="radio"], [role="option"], [role="checkbox"], [role="switch"]';
@@ -27,10 +28,26 @@ export function releaseFocusAfterClick(event: MouseEvent): void {
   if (isPressedOnly(focused) && event.target instanceof Node && focused.contains(event.target)) focused.blur();
 }
 
-/** A keydown handler for the window: Escape lets go of whatever control has focus. */
+/** True when the browser is showing focus on the element, as it does for someone using the keyboard. */
+function focusIsVisible(element: HTMLElement): boolean {
+  try {
+    return element.matches(":focus-visible");
+  } catch {
+    // An engine without the selector: assume a keyboard, and leave focus alone.
+    return true;
+  }
+}
+
+/**
+ * A keydown handler for the window: Escape lets go of a control that holds
+ * focus without showing it, which is focus a pointer left there. Someone
+ * moving through the controls with Tab keeps their place: taking focus away
+ * would send their next Tab back to the start of the window.
+ */
 export function releaseFocusOnEscape(event: KeyboardEvent): void {
   if (event.key !== "Escape") return;
   const focused = document.activeElement;
   // A text field deals with Escape itself, by cancelling what was typed.
-  if (focused instanceof HTMLElement && focused !== document.body && !focused.matches(TAKES_TEXT)) focused.blur();
+  if (!(focused instanceof HTMLElement) || focused === document.body || focused.matches(TAKES_TEXT)) return;
+  if (!focusIsVisible(focused)) focused.blur();
 }
