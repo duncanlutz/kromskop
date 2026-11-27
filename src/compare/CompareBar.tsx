@@ -1,5 +1,6 @@
 import { X } from "@phosphor-icons/react";
 import { useSession } from "../session/Session";
+import { tabKeys } from "../ui/tabKeys";
 import { Tooltip } from "../ui/Tooltip";
 import { COMPARE_MODES, useCompare, useCompareView } from "./CompareState";
 import styles from "./CompareBar.module.css";
@@ -22,7 +23,16 @@ export function CompareBar() {
 
   return (
     <footer className={styles.bar}>
-      <div className={styles.modes} role="tablist" aria-label="Layout">
+      <div
+        className={styles.modes}
+        role="tablist"
+        aria-label="Layout"
+        onKeyDown={tabKeys(
+          COMPARE_MODES.map((option) => option.id),
+          compare.mode,
+          compare.setMode,
+        )}
+      >
         {COMPARE_MODES.map((option) => (
           <Tooltip key={option.id} label={option.hint} keys={option.key} side="top">
             <button
@@ -30,6 +40,7 @@ export function CompareBar() {
               role="tab"
               className={styles.mode}
               aria-selected={option.id === compare.mode}
+              tabIndex={option.id === compare.mode ? 0 : -1}
               onClick={() => compare.setMode(option.id)}
             >
               {option.label}
