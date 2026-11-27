@@ -1,0 +1,28 @@
+# Dependencies and build output
+node_modules/
+dist/
+target/
+src-tauri/target/
+src-tauri/gen/
+
+# Local environment and editor files
+.env
+.env.*
+!.env.example
+.DS_Store
+*.log
+.claude/settings.local.json
+
+# Personal photos never belong in the repo. Put your own RAW files here.
+samples/local/
+*.arw
+*.cr2
+*.cr3
+*.nef
+*.raf
+*.orf
+*.rw2
+*.dng
+
+# Kromskop's own per-folder edit store
+.kromskop/
