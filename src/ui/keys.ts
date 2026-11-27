@@ -23,14 +23,22 @@ export function isTextEntry(target: EventTarget | null): boolean {
 /**
  * True when a focused control will act on this key itself, so a shortcut
  * must not also fire: any key in a text field, Space and Enter on anything
- * that is pressed (buttons, links, tabs, options), and the arrows and their
- * relatives on controls that move with them.
+ * that is pressed (buttons, links, tabs, options) unless it is the tab or
+ * option already chosen, and the arrows and their relatives on controls
+ * that move with them.
  */
 export function belongsToControl(event: KeyboardEvent): boolean {
   const el = element(event.target);
   if (!el) return false;
   if (isTextEntry(el)) return true;
-  if (event.key === " " || event.key === "Enter") return el.closest(ACTIVATED) !== null || el.tagName === "INPUT";
+  if (event.key === " " || event.key === "Enter") {
+    const control = el.closest(ACTIVATED);
+    // Pressing the tab or option that is already chosen would do nothing,
+    // so the key is free for the page: Space still swaps the pair with
+    // focus resting on the current layout's tab.
+    if (control?.matches('[role="tab"][aria-selected="true"], [role="radio"][aria-checked="true"]')) return false;
+    return control !== null || el.tagName === "INPUT";
+  }
   if (/^(Arrow|Home$|End$|Page)/.test(event.key) || event.key === "Delete" || event.key === "Backspace") {
     return el.closest(ARROW_DRIVEN) !== null;
   }
