@@ -53,7 +53,7 @@ function agentDetail(state: AgentState, photo: Photo | undefined): string {
     case "done":
       return "Finished 6 photos, 10 versions";
     case "disconnected":
-      return "No agent connected";
+      return "Last connected 12 minutes ago";
   }
 }
 
