@@ -3,11 +3,13 @@ import { ORIGINAL_ID, type Photo, type Version } from "../model/types";
 import {
   addToComparison,
   agentMayFocus,
+  agentMustWait,
   comparedVersions,
   focusAfterReference,
   isFull,
   reconcile,
   removeFromComparison,
+  requestApplies,
   standingOf,
   startComparison,
 } from "./comparison";
@@ -210,5 +212,37 @@ describe("leaving Reference", () => {
 
   it("does not return to a version that has left the comparison", () => {
     expect(focusAfterReference({ from: "p-b", to: "p-a" }, "p-a", [version("A"), version("C")])).toBeNull();
+  });
+});
+
+describe("an agent's request and the photo on screen", () => {
+  const p = photo("ABC");
+
+  it("applies when it is about this photo and a version it has", () => {
+    expect(requestApplies({ stamp: 1, photoId: "p", focusVersionId: "p-b" }, p)).toBe(true);
+    expect(requestApplies({ stamp: 1, photoId: "p", centre: { x: 0.5, y: 0.5 }, magnification: 2 }, p)).toBe(true);
+  });
+
+  it("is let go when another photo is on screen", () => {
+    expect(requestApplies({ stamp: 1, photoId: "other", focusVersionId: "p-b" }, p)).toBe(false);
+    expect(requestApplies({ stamp: 1, photoId: "p" }, null)).toBe(false);
+  });
+
+  it("is let go when its version no longer exists", () => {
+    expect(requestApplies({ stamp: 1, photoId: "p", focusVersionId: "p-z" }, p)).toBe(false);
+  });
+});
+
+describe("when the agent must wait", () => {
+  it("waits while a pointer is down", () => {
+    expect(agentMustWait({ dragging: true, writingNote: false })).toBe(true);
+  });
+
+  it("waits while a note is being placed or written", () => {
+    expect(agentMustWait({ dragging: false, writingNote: true })).toBe(true);
+  });
+
+  it("goes ahead when the person is doing neither", () => {
+    expect(agentMustWait({ dragging: false, writingNote: false })).toBe(false);
   });
 });

@@ -15,12 +15,14 @@ import { useView } from "../shell/ViewState";
 import {
   addToComparison,
   agentMayFocus,
+  agentMustWait,
   comparedVersions,
   focusAfterReference,
   isFull,
   MAX_COMPARED,
   reconcile,
   removeFromComparison,
+  requestApplies,
   standingOf,
   startComparison,
   type Comparison,
@@ -221,6 +223,9 @@ export function CompareProvider({ children }: { children: ReactNode }) {
     setNoteToolState(false);
     setFollowing(false);
     setRefused(null);
+    // Whatever was under way belonged to the photo that has gone: a drag
+    // cannot outlive it, and a request held for it is let go.
+    dragging.current = false;
     setHeld(null);
   }, [photoId]);
 
@@ -443,22 +448,26 @@ export function CompareProvider({ children }: { children: ReactNode }) {
     [photo, comparison, version?.id, selectVersion, fit],
   );
 
+  // The agent never changes what the person is looking at while they are in
+  // the middle of something: a drag, or a note being placed or written.
+  const writingNote = draft !== null || noteTool;
+
   const appliedStamp = useRef(agentView?.stamp ?? 0);
   useEffect(() => {
     if (!agentView || agentView.stamp <= appliedStamp.current) return;
     appliedStamp.current = agentView.stamp;
-    if (!active) return;
-    // While the person is dragging, the request waits for the drag to end.
-    if (dragging.current) setHeld(agentView);
+    if (!active || !requestApplies(agentView, photo)) return;
+    if (agentMustWait({ dragging: dragging.current, writingNote })) setHeld(agentView);
     else applyAgentView(agentView);
-  }, [active, agentView, applyAgentView]);
+  }, [active, agentView, photo, writingNote, applyAgentView]);
 
-  // A drag has ended: whatever the agent asked for meanwhile happens now.
+  // The drag has ended, or the note was saved or cancelled: whatever the
+  // agent asked for meanwhile happens now, if it is still about this photo.
   useEffect(() => {
-    if (!held || dragging.current) return;
+    if (!held || agentMustWait({ dragging: dragging.current, writingNote })) return;
     setHeld(null);
-    applyAgentView(held);
-  }, [released, held, applyAgentView]);
+    if (requestApplies(held, photo)) applyAgentView(held);
+  }, [released, held, photo, writingNote, applyAgentView]);
 
   const beginDrag = useCallback(() => {
     dragging.current = true;

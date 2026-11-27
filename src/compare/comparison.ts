@@ -8,7 +8,7 @@
  * refused with the reason rather than making room by removing another.
  */
 
-import { ORIGINAL_ID, type Photo, type Version } from "../model/types";
+import { ORIGINAL_ID, type AgentViewRequest, type Photo, type Version } from "../model/types";
 
 /** Most versions shown at once. */
 export const MAX_COMPARED = 6;
@@ -125,6 +125,32 @@ export function removeFromComparison(comparison: Comparison, versionId: string):
  */
 export function agentMayFocus(comparison: Comparison, photo: Photo, versionId: string): boolean {
   return standingOf(comparison, photo, versionId) === "compared";
+}
+
+/**
+ * Whether a request from the agent is still about the photo on screen. One
+ * made for another photo, or for a version that no longer exists, is let go.
+ */
+export function requestApplies(request: AgentViewRequest, photo: Photo | null): boolean {
+  if (!photo || request.photoId !== photo.id) return false;
+  return request.focusVersionId === undefined || photo.versions.some((v) => v.id === request.focusVersionId);
+}
+
+/** What the person is in the middle of, as far as the view is concerned. */
+export interface PersonAtWork {
+  /** A pointer is down on a tile or the divider. */
+  dragging: boolean;
+  /** A note has a place and is being given its words, or is about to be placed. */
+  writingNote: boolean;
+}
+
+/**
+ * The agent never changes what the person is looking at while they are in
+ * the middle of doing something. Its request waits and is applied when they
+ * have finished.
+ */
+export function agentMustWait(person: PersonAtWork): boolean {
+  return person.dragging || person.writingNote;
 }
 
 /** A focus that Reference moved off the pinned version, so it can be put back. */

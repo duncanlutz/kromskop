@@ -1,4 +1,4 @@
-import { useRef, type CSSProperties, type PointerEvent, type ReactNode } from "react";
+import { useEffect, useRef, type CSSProperties, type PointerEvent, type ReactNode } from "react";
 import { ORIGINAL_ID, type Photo, type Version } from "../model/types";
 import { useSession } from "../session/Session";
 import { usePrefs } from "../shell/Prefs";
@@ -140,6 +140,13 @@ function Divider() {
     dragging.current = false;
     endDrag();
   };
+  // A divider that goes away mid-drag ends the drag, so the flag cannot stick.
+  useEffect(
+    () => () => {
+      if (dragging.current) endDrag();
+    },
+    [endDrag],
+  );
 
   const move = (event: PointerEvent<HTMLDivElement>) => {
     const viewport = event.currentTarget.parentElement?.getBoundingClientRect();

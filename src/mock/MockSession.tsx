@@ -386,6 +386,7 @@ function reduce(state: MockState, action: Action): MockState {
         pointer: { id: stamp, photoId: photo.id, versionId: target.id, region, caption, lifetime: POINTER_LIFETIME_MS },
         agentView: {
           stamp,
+          photoId: photo.id,
           focusVersionId: target.id,
           centre: { x: region.x + region.width / 2, y: region.y + region.height / 2 },
           magnification: 2.4,
@@ -445,7 +446,7 @@ function reduce(state: MockState, action: Action): MockState {
           ),
         },
         rendering: { ...state.rendering, [version.id]: true },
-        agentView: { stamp, focusVersionId: version.id },
+        agentView: { stamp, photoId: photo.id, focusVersionId: version.id },
         agent: { client: MOCK_CLIENT, state: "working", detail: `Rendering version ${letter} of ${photo.fileName}` },
       };
     }

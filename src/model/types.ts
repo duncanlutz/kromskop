@@ -153,6 +153,8 @@ export interface AgentPointer {
 export interface AgentViewRequest {
   /** Goes up with each request, so the same request is not applied twice. */
   stamp: number;
+  /** The photo the request is about. It is let go if another is on screen by then. */
+  photoId: string;
   focusVersionId?: string;
   /** Centre of the view, as fractions of the photo. */
   centre?: { x: number; y: number };

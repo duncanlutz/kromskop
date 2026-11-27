@@ -63,6 +63,15 @@ export function Viewport({ photo, layers, activeId, focusOnPress = true, childre
   /** A note region while it is being dragged out, as fractions of the photo. */
   const [drawing, setDrawing] = useState<{ versionId: string; x0: number; y0: number; x1: number; y1: number } | null>(null);
 
+  // A tile that goes away mid-press ends its drag, so the flag cannot stick.
+  const endDrag = compare.endDrag;
+  useEffect(
+    () => () => {
+      if (press.current) endDrag();
+    },
+    [endDrag],
+  );
+
   const placeOf = (versionId: string) => place(view, offsets[versionId], size, photo);
   const active = placeOf(activeId);
   const isFocus = compare.focus?.id === activeId;
