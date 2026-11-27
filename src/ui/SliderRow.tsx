@@ -23,6 +23,8 @@ export function SliderRow({ def, value, parentValue, onChange, swatch, agentMark
   const drag = useRef<{ lastX: number; position: number } | null>(null);
   const [dragging, setDragging] = useState(false);
   const [draft, setDraft] = useState<string | null>(null);
+  /** Set when Escape or Return has already dealt with the draft, so the blur that follows does not commit it. */
+  const settled = useRef(false);
 
   const changed = parentValue !== null && value !== parentValue;
   const position = toPosition(def, value);
@@ -107,12 +109,22 @@ export function SliderRow({ def, value, parentValue, onChange, swatch, agentMark
     setDraft(null);
   };
 
+  // Blur commits what was typed, unless a key has already settled it.
+  // blur() fires this synchronously, before the state it would read has updated.
+  const onFieldBlur = () => {
+    if (settled.current) settled.current = false;
+    else commitDraft();
+  };
+
   const onFieldKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
     if (event.key === "Enter") {
       commitDraft();
+      settled.current = true;
       event.currentTarget.blur();
     } else if (event.key === "Escape") {
+      // Cancel: drop the draft and leave the value as it was.
       setDraft(null);
+      settled.current = true;
       event.currentTarget.blur();
     } else if (event.key === "ArrowUp" || event.key === "ArrowDown") {
       const parsed = draft === null ? value : (parseValue(def, draft) ?? value);
@@ -182,11 +194,12 @@ export function SliderRow({ def, value, parentValue, onChange, swatch, agentMark
         disabled={disabled}
         value={draft ?? formatted}
         onFocus={(event) => {
+          settled.current = false;
           setDraft(formatted);
           event.currentTarget.select();
         }}
         onChange={(event) => setDraft(event.currentTarget.value)}
-        onBlur={commitDraft}
+        onBlur={onFieldBlur}
         onKeyDown={onFieldKeyDown}
         spellCheck={false}
         autoComplete="off"
