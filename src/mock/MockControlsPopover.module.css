@@ -1,0 +1,110 @@
+/*
+ * A floating layer, so it may cast a shadow. The dashed edge marks it as
+ * scaffolding rather than product.
+ */
+.popover {
+  position: fixed;
+  right: var(--space-12);
+  bottom: var(--space-12);
+  z-index: 10;
+  width: 248px;
+  border-radius: var(--radius-popover);
+  background: var(--surface-panel);
+  box-shadow: var(--shadow-floating);
+  outline: 1px dashed rgba(255, 255, 255, 0.34);
+  outline-offset: -1px;
+}
+
+.header {
+  padding: var(--space-8) var(--space-12);
+  border-bottom: 1px dashed var(--hairline-strong);
+}
+
+.title {
+  font-weight: var(--weight-semibold);
+}
+
+.note {
+  display: block;
+  color: var(--text-tertiary);
+  font-size: var(--size-11);
+  line-height: var(--leading-11);
+}
+
+.section {
+  padding: var(--space-8) var(--space-12);
+  border-bottom: 1px solid var(--hairline);
+}
+
+.section:last-child {
+  border-bottom: 0;
+}
+
+.legend {
+  margin-bottom: 2px;
+  color: var(--text-tertiary);
+  font-size: var(--size-11);
+  line-height: var(--leading-11);
+}
+
+.option {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  height: 22px;
+  color: var(--text-secondary);
+}
+
+.option:hover,
+.option:has(input:checked) {
+  color: var(--text-primary);
+}
+
+.option input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.radio {
+  display: grid;
+  place-items: center;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px var(--text-tertiary);
+}
+
+.option input:checked + .radio {
+  box-shadow: inset 0 0 0 1px var(--selection);
+}
+
+.option input:checked + .radio::after {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--selection);
+}
+
+.option input:focus-visible + .radio {
+  outline: 1px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.action {
+  width: 100%;
+  height: 26px;
+  border-radius: var(--radius-control);
+  background: var(--surface-control);
+  box-shadow: inset 0 0 0 1px var(--hairline-strong);
+  font-weight: var(--weight-medium);
+}
+
+.action:hover:not(:disabled) {
+  background: var(--surface-hover);
+}
+
+.action:disabled {
+  color: var(--text-disabled);
+}
