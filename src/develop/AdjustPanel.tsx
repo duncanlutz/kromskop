@@ -25,7 +25,7 @@ type GroupId = "light" | "colour" | "curve" | "mixer";
 const ALL_MIXER_PARAMS = MIXER_CHANNELS.flatMap((channel) => MIXER_PARAMS[channel]);
 
 export function AdjustPanel() {
-  const { status, photo, version, parent, agentTouched, histogram, setParam } = useSession();
+  const { status, photo, version, parent, agentTouched, histogram, setParam, beginEdit, commitEdit } = useSession();
   const [open, setOpen] = useState<Record<GroupId, boolean>>({ light: true, colour: true, curve: true, mixer: true });
   const [channel, setChannel] = useState<MixerChannel>("sat");
 
@@ -55,6 +55,9 @@ export function AdjustPanel() {
         agentMark={agentTouched[def.id]}
         disabled={disabled}
         onChange={(value) => setParam(def.id as ParamId, value)}
+        // A drag, a held key or a stay in the field is one edit, decided when it ends.
+        onGestureStart={beginEdit}
+        onGestureEnd={commitEdit}
       />
     ));
 

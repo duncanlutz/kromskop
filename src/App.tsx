@@ -8,6 +8,7 @@ import { StubView } from "./shell/StubView";
 import { Toolbar } from "./shell/Toolbar";
 import { ViewProvider, useView } from "./shell/ViewState";
 import { VIEWS } from "./shell/ViewSwitch";
+import { releaseFocusAfterClick, releaseFocusOnEscape } from "./ui/focus";
 import { TooltipProvider } from "./ui/Tooltip";
 import styles from "./App.module.css";
 
@@ -38,6 +39,17 @@ export function App() {
 
 function Shell() {
   const { view, setView } = useView();
+
+  // A control clicked with the mouse does not keep the keyboard, and Escape
+  // lets go of any control, so the page's shortcuts are never left dead.
+  useEffect(() => {
+    window.addEventListener("click", releaseFocusAfterClick);
+    window.addEventListener("keydown", releaseFocusOnEscape);
+    return () => {
+      window.removeEventListener("click", releaseFocusAfterClick);
+      window.removeEventListener("keydown", releaseFocusOnEscape);
+    };
+  }, []);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
