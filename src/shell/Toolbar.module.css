@@ -1,0 +1,94 @@
+.toolbar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: none;
+  height: var(--toolbar-height);
+  padding: 0 var(--space-8) 0 var(--space-12);
+  border-bottom: 1px solid var(--hairline);
+  background: var(--surface-window);
+}
+
+/* Keep clear of the macOS window controls. */
+.toolbar[data-window-controls="native"],
+.toolbar[data-window-controls="stand-in"] {
+  padding-left: var(--window-controls-inset);
+}
+
+/* Browser only: shows where macOS will draw its window controls. */
+.standIn {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  display: flex;
+  gap: 9px;
+  margin-top: -7px;
+}
+
+.standIn span {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+}
+
+.standIn span:nth-child(1) {
+  background: #ff5f57;
+}
+
+.standIn span:nth-child(2) {
+  background: #febc2e;
+}
+
+.standIn span:nth-child(3) {
+  background: #28c840;
+}
+
+.title {
+  display: flex;
+  align-items: baseline;
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.folder {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text-secondary);
+}
+
+.separator {
+  margin: 0 var(--space-8);
+  color: var(--text-disabled);
+}
+
+.file {
+  color: var(--text-primary);
+  font-weight: var(--weight-medium);
+}
+
+.count {
+  margin-left: var(--space-12);
+  color: var(--text-tertiary);
+}
+
+/* Centred on the window, not on the space left over. */
+.centre {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.right {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex: 1;
+}
+
+.divider {
+  width: 1px;
+  height: 16px;
+  margin: 0 var(--space-8) 0 var(--space-12);
+  background: var(--hairline-strong);
+}

@@ -1,0 +1,119 @@
+/*
+ * Design tokens.
+ *
+ * Chrome is neutral: every surface, line and text colour below has R = G = B,
+ * so nothing around a photo shifts how its colour is perceived. Colour appears
+ * only where it is the information: the two reserved accents, histogram
+ * channels and Colour Mixer bands. All of it is small and low in chroma.
+ */
+
+:root {
+  /* Surfaces, darkest to lightest. */
+  --surface-window: #1a1a1a;
+  --surface-panel: #222222;
+  --surface-subtle: #272727;
+  --surface-control: #2c2c2c;
+  --surface-hover: #363636;
+  --surface-pressed: #404040;
+  --surface-well: #181818;
+
+  /* Hairlines. White at low alpha so one value works on every surface. */
+  --hairline: rgba(255, 255, 255, 0.08);
+  --hairline-strong: rgba(255, 255, 255, 0.14);
+
+  /* Text. Tertiary is for metadata on window and panel surfaces only. */
+  --text-primary: #e4e4e4;
+  --text-secondary: #a6a6a6;
+  --text-tertiary: #8c8c8c;
+  --text-disabled: #5c5c5c;
+  --text-inverse: #1a1a1a;
+
+  /* Selection and focus are white or light grey, never an accent. */
+  --selection: #e4e4e4;
+  --focus-ring: #ffffff;
+
+  /* Reserved accents. */
+  --accent-pick: #d9a441; /* a human pick: safelight amber */
+  --accent-agent: #5fb0b7; /* the agent's identity and activity */
+
+  /*
+   * Functional colour: used only where the colour is the information.
+   * Small marks at low chroma, never fills of any size.
+   */
+  --channel-red: #c9766c;
+  --channel-green: #7fae78;
+  --channel-blue: #7491cf;
+
+  --band-red: #c4736c;
+  --band-orange: #c98d5c;
+  --band-yellow: #bfae5e;
+  --band-green: #7daa72;
+  --band-aqua: #63ae98;
+  --band-blue: #6c90c8;
+  --band-purple: #9480c4;
+  --band-magenta: #bd78ae;
+
+  /* Surround presets for the area around the photo. */
+  --surround-black: #000000;
+  --surround-dark: #141414;
+  --surround-dim: #3a3a3a;
+  --surround-assess: #777777;
+  --surround-white: #ffffff;
+
+  /* Type. IBM Plex Sans, self-hosted; the system font is only a fallback.
+     Plex figures are tabular by default, so columns of numbers align. */
+  --font-ui: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, system-ui, "Segoe UI", sans-serif;
+  --font-code: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --tracking-small: 0.005em;
+  --tracking-title: -0.005em;
+
+  --size-11: 11px;
+  --size-12: 12px;
+  --size-13: 13px;
+  --size-15: 15px;
+  --size-20: 20px;
+
+  --leading-11: 16px;
+  --leading-12: 16px;
+  --leading-13: 18px;
+  --leading-15: 20px;
+  --leading-20: 26px;
+
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+
+  /* Spacing. */
+  --space-4: 4px;
+  --space-8: 8px;
+  --space-12: 12px;
+  --space-16: 16px;
+  --space-24: 24px;
+  --space-32: 32px;
+
+  /* Radius. Photos are always square. Nested radii stay concentric:
+     inner radius = outer radius - the gap between them. */
+  --radius-control: 4px;
+  --radius-popover: 6px;
+  --radius-sheet: 10px;
+
+  /* Shadow is for floating layers only. */
+  --shadow-floating: 0 0 0 1px rgba(0, 0, 0, 0.6), 0 12px 32px rgba(0, 0, 0, 0.55);
+
+  /* Layout. */
+  --toolbar-height: 40px;
+  --row-height: 24px;
+  --panel-left-width: 264px;
+  --panel-right-width: 296px;
+  --filmstrip-height: 108px;
+  --infoline-height: 28px;
+  /* Space kept clear for the macOS window controls in the overlay title bar.
+     Measured on macOS 26: three 14 px controls from x = 14 at a 23 px pitch. */
+  --window-controls-inset: 88px;
+
+  /* Motion. Only cause and effect is animated. */
+  --ease-out: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --duration-quick: 120ms;
+  --duration-move: 260ms;
+  --duration-agent-mark: 2600ms;
+}

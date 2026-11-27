@@ -1,0 +1,141 @@
+.filmstrip {
+  display: flex;
+  min-width: 0;
+  border-top: 1px solid var(--hairline);
+  background: var(--surface-window);
+}
+
+/* As wide as the version stack above it, so the frames start under the photo. */
+.summary {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--space-4);
+  flex: none;
+  width: var(--panel-left-width);
+  padding: 0 var(--space-12);
+  border-right: 1px solid var(--hairline);
+  color: var(--text-secondary);
+}
+
+.quiet {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  color: var(--text-tertiary);
+  font-size: var(--size-11);
+  line-height: var(--leading-11);
+  letter-spacing: var(--tracking-small);
+}
+
+.legend {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.legend[data-mark="pick"] {
+  background: var(--accent-pick);
+}
+
+.legend[data-mark="unseen"] {
+  background: var(--accent-agent);
+}
+
+.frames {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  padding: 0 var(--space-12);
+  overflow-x: auto;
+  overflow-y: hidden;
+  list-style: none;
+}
+
+.cell {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  width: 112px;
+  padding: var(--space-8) var(--space-8) var(--space-4);
+  border-radius: var(--radius-control);
+  text-align: left;
+}
+
+.cell:hover:not(:disabled):not([aria-current]) {
+  background: var(--surface-panel);
+}
+
+.cell[aria-current] {
+  background: var(--surface-control);
+}
+
+.cell:focus-visible {
+  outline-offset: -1px;
+}
+
+.window {
+  display: grid;
+  place-items: center;
+  width: 96px;
+  height: 64px;
+}
+
+/* Photos keep square corners at every size. */
+.frame {
+  display: block;
+}
+
+.pending {
+  box-shadow: inset 0 0 0 1px var(--hairline-strong);
+}
+
+.caption {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 14px;
+  padding: 0 1px;
+  color: var(--text-tertiary);
+  font-size: var(--size-11);
+  line-height: 14px;
+}
+
+.cell[aria-current] .name {
+  color: var(--text-primary);
+}
+
+.marks {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.pickDot,
+.unseenDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.pickDot {
+  background: var(--accent-pick);
+}
+
+.unseenDot {
+  background: var(--accent-agent);
+}
+
+/* Version count. Square, like a frame number printed on the rebate. */
+.badge {
+  min-width: 14px;
+  height: 14px;
+  padding: 0 var(--space-4);
+  box-shadow: inset 0 0 0 1px var(--hairline-strong);
+  color: var(--text-secondary);
+  line-height: 14px;
+  text-align: center;
+}

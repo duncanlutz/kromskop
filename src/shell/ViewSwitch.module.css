@@ -1,0 +1,29 @@
+.switch {
+  display: flex;
+  gap: 1px;
+  padding: 1px;
+  border-radius: var(--radius-control);
+  box-shadow: inset 0 0 0 1px var(--hairline-strong);
+}
+
+.option {
+  height: 22px;
+  padding: 0 var(--space-12);
+  /* Concentric with the 4 px group radius across a 1 px gap. */
+  border-radius: 3px;
+  color: var(--text-secondary);
+  font-weight: var(--weight-medium);
+}
+
+.option:hover {
+  color: var(--text-primary);
+}
+
+.option[aria-selected="true"] {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+.option:focus-visible {
+  outline-offset: -1px;
+}

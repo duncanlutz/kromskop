@@ -1,0 +1,64 @@
+.group {
+  border-bottom: 1px solid var(--hairline);
+}
+
+.heading {
+  margin: 0;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 32px;
+  padding: 0 var(--space-16) 0 var(--space-4);
+  text-align: left;
+}
+
+.header:focus-visible {
+  outline-offset: -2px;
+}
+
+.caret {
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  margin-right: var(--space-4);
+  color: var(--text-tertiary);
+}
+
+.header:hover:not(:disabled) .caret {
+  color: var(--text-primary);
+}
+
+.title {
+  flex: 1;
+  font-weight: var(--weight-medium);
+}
+
+.group[data-disabled] .title,
+.group[data-disabled] .caret {
+  color: var(--text-disabled);
+}
+
+/* Same dot as a changed slider row, with a count. */
+.changed {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  color: var(--text-secondary);
+  font-size: var(--size-11);
+  line-height: var(--leading-11);
+}
+
+.dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.body {
+  padding: 0 var(--space-12) var(--space-12) var(--space-24);
+}

@@ -1,0 +1,93 @@
+.item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  /* Fixed width: the toolbar must not shift when the state changes. */
+  width: 216px;
+  height: 24px;
+  padding: 0 var(--space-8) 0 var(--space-4);
+  border-radius: var(--radius-control);
+  white-space: nowrap;
+}
+
+.item:hover,
+.item[data-popup-open] {
+  background: var(--surface-control);
+}
+
+.client {
+  margin-right: var(--space-4);
+  color: var(--text-secondary);
+}
+
+.state {
+  color: var(--text-primary);
+}
+
+.item[data-state="waiting"] .state,
+.item[data-state="error"] .state {
+  font-weight: var(--weight-medium);
+}
+
+.item[data-state="disconnected"] .state,
+.item[data-state="done"] .state {
+  color: var(--text-secondary);
+}
+
+.popup {
+  width: 280px;
+  padding: var(--space-12);
+  border-radius: var(--radius-popover);
+  background: var(--surface-panel);
+  box-shadow:
+    inset 0 0 0 1px var(--hairline-strong),
+    var(--shadow-floating);
+}
+
+.title {
+  font-size: var(--size-13);
+  line-height: var(--leading-13);
+  font-weight: var(--weight-medium);
+}
+
+.connection {
+  color: var(--text-secondary);
+}
+
+.rule {
+  height: 1px;
+  margin: var(--space-12) calc(-1 * var(--space-12));
+  background: var(--hairline);
+}
+
+.status {
+  display: flex;
+  gap: var(--space-8);
+}
+
+.statusLabel {
+  font-weight: var(--weight-medium);
+}
+
+.detail {
+  margin: 0;
+  color: var(--text-secondary);
+}
+
+.hint {
+  margin-top: var(--space-12);
+  color: var(--text-secondary);
+}
+
+.command {
+  display: block;
+  margin-top: var(--space-8);
+  padding: var(--space-4) var(--space-8);
+  border-radius: var(--radius-control);
+  background: var(--surface-well);
+  box-shadow: inset 0 0 0 1px var(--hairline);
+  font-family: var(--font-code);
+  font-size: var(--size-11);
+  line-height: var(--leading-11);
+  color: var(--text-primary);
+}

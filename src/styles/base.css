@@ -1,0 +1,143 @@
+@import "./fonts.css";
+@import "./tokens.css";
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+html {
+  color-scheme: dark;
+  background: var(--surface-window);
+}
+
+body {
+  margin: 0;
+  overflow: hidden;
+  background: var(--surface-window);
+  color: var(--text-primary);
+  font-family: var(--font-ui);
+  font-size: var(--size-12);
+  line-height: var(--leading-12);
+  font-weight: var(--weight-regular);
+  font-synthesis: none;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  /* This is an app window, not a document. */
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: default;
+}
+
+h1,
+h2,
+h3,
+p {
+  margin: 0;
+  font-size: inherit;
+  font-weight: inherit;
+}
+
+button,
+input {
+  font: inherit;
+  letter-spacing: inherit;
+  color: inherit;
+}
+
+button {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: default;
+}
+
+img {
+  display: block;
+}
+
+:focus {
+  outline: none;
+}
+
+:focus-visible {
+  outline: 1px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+::selection {
+  background: #5c5c5c;
+  color: #ffffff;
+}
+
+/* Numbers: proportional type with tabular figures, never a monospace face. */
+.num {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Text a person may want to copy, such as a command. */
+.selectable {
+  user-select: text;
+  -webkit-user-select: text;
+  cursor: text;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/*
+ * The agent's mark. Whatever carries data-agent-mark has its ink turned to
+ * the agent hue, held, then returned to its own colour. No fill, no glow.
+ * The two values alternate so a second change restarts the mark.
+ */
+[data-agent-mark="odd"] {
+  animation: agent-mark-odd var(--duration-agent-mark) linear;
+}
+
+[data-agent-mark="even"] {
+  animation: agent-mark-even var(--duration-agent-mark) linear;
+}
+
+@keyframes agent-mark-odd {
+  0%,
+  62% {
+    color: var(--accent-agent);
+  }
+}
+
+@keyframes agent-mark-even {
+  0%,
+  62% {
+    color: var(--accent-agent);
+  }
+}
+
+/* Scrollbars stay neutral and thin. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #444444 transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    transition-duration: 1ms !important;
+  }
+}

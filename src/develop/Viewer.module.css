@@ -1,0 +1,152 @@
+.viewer {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.stage {
+  --on-surround: var(--text-secondary);
+  --on-surround-quiet: var(--text-tertiary);
+  --on-surround-line: rgba(255, 255, 255, 0.2);
+
+  display: grid;
+  place-items: center;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--surround-dark);
+}
+
+.stage[data-tone="light"] {
+  --on-surround: #1a1a1a;
+  --on-surround-quiet: #2c2c2c;
+  --on-surround-line: rgba(0, 0, 0, 0.45);
+}
+
+/* Square corners, no shadow, no rounding, no transition between versions:
+   flipping versions must be an instant cut to compare them honestly. */
+.photo {
+  display: block;
+}
+
+/* Assess: a thin paper-white frame as a white reference beside the photo. */
+.framed {
+  outline: 4px solid #ffffff;
+}
+
+/* Loading: an empty frame where the photo will land, so nothing jumps. */
+.loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.frame {
+  box-shadow: inset 0 0 0 1px var(--on-surround-line);
+}
+
+.loadingCaption {
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  height: 44px;
+  padding-top: var(--space-16);
+  color: var(--on-surround);
+}
+
+.loadingCaption span:nth-child(2) {
+  color: var(--on-surround-quiet);
+}
+
+/* Real progress, one step per decoded preview. No shimmer. */
+.progress {
+  position: absolute;
+  inset: 0 0 auto;
+  top: 6px;
+  height: 2px;
+  background: var(--on-surround-line);
+}
+
+.progress span {
+  display: block;
+  height: 100%;
+  background: var(--on-surround);
+  transition: width var(--duration-move) var(--ease-out);
+}
+
+/* The line under the photo. Labels live here, not over the pixels. */
+.info {
+  display: flex;
+  align-items: center;
+  flex: none;
+  height: var(--infoline-height);
+  padding: 0 var(--space-12);
+  border-top: 1px solid var(--hairline);
+  background: var(--surface-window);
+  white-space: nowrap;
+}
+
+.file {
+  color: var(--text-secondary);
+}
+
+.version {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  margin-left: var(--space-16);
+  color: var(--text-primary);
+}
+
+.letter {
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
+  background: var(--selection);
+  color: var(--text-inverse);
+  font-size: var(--size-11);
+  font-weight: var(--weight-semibold);
+  line-height: 1;
+}
+
+.pick {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  margin-left: var(--space-12);
+  color: var(--accent-pick);
+  font-size: var(--size-11);
+  letter-spacing: var(--tracking-small);
+}
+
+.pick::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.spacer {
+  flex: 1;
+}
+
+.dimensions {
+  color: var(--text-tertiary);
+}
+
+.zoom {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-4);
+  min-width: 64px;
+  margin-left: var(--space-16);
+  color: var(--text-primary);
+}
+
+.zoom span {
+  color: var(--text-secondary);
+}
