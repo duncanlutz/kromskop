@@ -85,7 +85,15 @@ export function CompareWorkspace() {
   const hidden = compare.panelsHidden && ready;
 
   return (
-    <div className={styles.workspace} data-panels={hidden ? "hidden" : undefined}>
+    <div
+      className={styles.workspace}
+      data-panels={hidden ? "hidden" : undefined}
+      // The one place that ends following: anything the person does anywhere
+      // in Compare, by pointer, wheel or key, takes the view back from the agent.
+      onPointerDownCapture={compare.humanInput}
+      onWheelCapture={compare.humanInput}
+      onKeyDownCapture={compare.humanInput}
+    >
       {!hidden && (
         <VersionStack
           comparison={{
