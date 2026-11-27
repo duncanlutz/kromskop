@@ -63,15 +63,6 @@ export function Viewport({ photo, layers, activeId, focusOnPress = true, childre
   /** A note region while it is being dragged out, as fractions of the photo. */
   const [drawing, setDrawing] = useState<{ versionId: string; x0: number; y0: number; x1: number; y1: number } | null>(null);
 
-  // A tile that goes away mid-press ends its drag, so the flag cannot stick.
-  const endDrag = compare.endDrag;
-  useEffect(
-    () => () => {
-      if (press.current) endDrag();
-    },
-    [endDrag],
-  );
-
   const placeOf = (versionId: string) => place(view, offsets[versionId], size, photo);
   const active = placeOf(activeId);
   const isFocus = compare.focus?.id === activeId;
@@ -119,8 +110,6 @@ export function Viewport({ photo, layers, activeId, focusOnPress = true, childre
   const onPointerDown = (event: PointerEvent<HTMLDivElement>) => {
     if (event.button !== 0) return;
     event.currentTarget.setPointerCapture(event.pointerId);
-    // From press to release the view is the person's: the agent waits.
-    compare.beginDrag();
     const point = local(event);
     const versionId = versionAt(point);
     press.current = { ...point, lastX: point.x, lastY: point.y, moved: false, note: compare.noteTool, versionId };
@@ -155,7 +144,6 @@ export function Viewport({ photo, layers, activeId, focusOnPress = true, childre
     const pressed = press.current;
     press.current = null;
     setGrabbing(false);
-    compare.endDrag();
     return pressed;
   };
 

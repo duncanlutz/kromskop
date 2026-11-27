@@ -90,7 +90,11 @@ export function CompareWorkspace() {
       data-panels={hidden ? "hidden" : undefined}
       // The one place that ends following: anything the person does anywhere
       // in Compare, by pointer, wheel or key, takes the view back from the agent.
-      onPointerDownCapture={compare.humanInput}
+      onPointerDownCapture={() => {
+        compare.humanInput();
+        // From this press until its release the view is the person's.
+        compare.beginDrag();
+      }}
       onWheelCapture={compare.humanInput}
       onKeyDownCapture={compare.humanInput}
     >
@@ -107,7 +111,8 @@ export function CompareWorkspace() {
       )}
       {ready ? (
         <section className={styles.centre} aria-label="Comparison">
-          <CompareStage />
+          {/* A stage per photo: a press, a drag or a tile's state never carries over to the next one. */}
+          <CompareStage key={session.photo?.id} />
           <CompareBar />
         </section>
       ) : (

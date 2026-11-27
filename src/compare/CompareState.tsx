@@ -90,9 +90,10 @@ interface CompareState {
   following: boolean;
   humanInput(): void;
   /**
-   * Brackets any pointer drag by the person: panning, drawing a note,
-   * moving the divider. The agent's requests to move the view wait until
-   * the drag has ended.
+   * Marks a pointer going down anywhere in Compare: on a tile, the divider,
+   * a button. From then until the button comes up, wherever that is, the
+   * agent's requests to move the view wait. The release is watched for on
+   * the window, so nothing has to remember to end it.
    */
   beginDrag(): void;
   endDrag(): void;
@@ -223,9 +224,8 @@ export function CompareProvider({ children }: { children: ReactNode }) {
     setNoteToolState(false);
     setFollowing(false);
     setRefused(null);
-    // Whatever was under way belonged to the photo that has gone: a drag
-    // cannot outlive it, and a request held for it is let go.
-    dragging.current = false;
+    // A request held for the photo that has gone is let go. The pointer may
+    // still be down, though: that is the person's hand, not the photo's.
     setHeld(null);
   }, [photoId]);
 
@@ -477,6 +477,21 @@ export function CompareProvider({ children }: { children: ReactNode }) {
     dragging.current = false;
     setReleased((count) => count + 1);
   }, []);
+
+  // The press ends when the button comes up, wherever that happens and
+  // whatever was under it by then, so the flag cannot outlive the press.
+  // Heard in the capture phase: a control that stops the event on its way
+  // up, as the Split divider does, must not be able to hide the release.
+  useEffect(() => {
+    window.addEventListener("pointerup", endDrag, true);
+    window.addEventListener("pointercancel", endDrag, true);
+    window.addEventListener("blur", endDrag);
+    return () => {
+      window.removeEventListener("pointerup", endDrag, true);
+      window.removeEventListener("pointercancel", endDrag, true);
+      window.removeEventListener("blur", endDrag);
+    };
+  }, [endDrag]);
 
   const waiting = photo && comparison ? photo.versions.filter((v) => comparison.waiting.includes(v.id)) : [];
   const refusedVersion = photo?.versions.find((v) => v.id === refused);
