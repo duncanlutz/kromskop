@@ -1,12 +1,24 @@
-import { Camera } from "@phosphor-icons/react";
+import { Camera, Minus, Plus } from "@phosphor-icons/react";
 import { describeChanges, formatValue, paramDef } from "../model/params";
 import { isOriginal, type Photo, type Version } from "../model/types";
 import { useSession } from "../session/Session";
 import { Tooltip } from "../ui/Tooltip";
 import styles from "./VersionStack.module.css";
 
+/** What Compare adds to the stack: which versions are in the comparison. */
+export interface ComparisonControls {
+  /** In the comparison, dropped by the person, waiting for room, or simply out. */
+  standing(versionId: string): "compared" | "dropped" | "waiting" | "out";
+  /** Said under the heading when the comparison is full and something cannot be added. */
+  message: string | null;
+  toggle(versionId: string): void;
+  /** Brings a version into the comparison if need be, and focuses it. */
+  focus(versionId: string): void;
+  count: number;
+}
+
 /** Newest on top, the original at the bottom, like prints laid on a pile. */
-export function VersionStack() {
+export function VersionStack({ comparison }: { comparison?: ComparisonControls }) {
   const { status, photo, version } = useSession();
   const versions = photo ? [...photo.versions].reverse() : [];
   const count = photo ? photo.versions.length - 1 : 0;
@@ -15,8 +27,16 @@ export function VersionStack() {
     <aside className={styles.panel} aria-label="Versions">
       <header className={styles.header}>
         <h2 className={styles.heading}>Versions</h2>
-        {status === "ready" && count > 0 && <span className={`${styles.count} num`}>{count}</span>}
+        {status === "ready" && count > 0 && (
+          <span className={`${styles.count} num`}>{comparison ? `${comparison.count} of ${count} compared` : count}</span>
+        )}
       </header>
+
+      {status === "ready" && comparison?.message && (
+        <p className={styles.full} role="status">
+          {comparison.message}
+        </p>
+      )}
 
       {status === "empty" && <p className={styles.note}>No photo open.</p>}
       {status === "loading" && <p className={styles.note}>Reading versions…</p>}
@@ -25,32 +45,60 @@ export function VersionStack() {
         <>
           <ol className={styles.list}>
             {versions.map((item) => (
-              <VersionRow key={item.id} photo={photo} item={item} selected={item.id === version.id} />
+              <VersionRow key={item.id} photo={photo} item={item} selected={item.id === version.id} comparison={comparison} />
             ))}
           </ol>
           {count === 0 && (
             <p className={styles.note}>No versions yet. Your agent adds them, or move a slider to start one yourself.</p>
           )}
-          <footer className={styles.keys} aria-hidden="true">
-            <span>
-              <kbd>↑</kbd>
-              <kbd>↓</kbd> version
-            </span>
-            <span>
-              <kbd>P</kbd> pick
-            </span>
-            <span>
-              <kbd>\</kbd> original
-            </span>
-          </footer>
+          {comparison ? (
+            <footer className={styles.keys} aria-hidden="true">
+              <span>
+                <kbd>1</kbd>–<kbd>6</kbd> focus
+              </span>
+              <span>
+                <kbd>X</kbd> drop
+              </span>
+              <span>
+                <kbd>U</kbd> restore
+              </span>
+              <span>
+                <kbd>P</kbd> pick
+              </span>
+            </footer>
+          ) : (
+            <footer className={styles.keys} aria-hidden="true">
+              <span>
+                <kbd>↑</kbd>
+                <kbd>↓</kbd> version
+              </span>
+              <span>
+                <kbd>P</kbd> pick
+              </span>
+              <span>
+                <kbd>\</kbd> original
+              </span>
+            </footer>
+          )}
         </>
       )}
     </aside>
   );
 }
 
-function VersionRow({ photo, item, selected }: { photo: Photo; item: Version; selected: boolean }) {
+interface VersionRowProps {
+  photo: Photo;
+  item: Version;
+  selected: boolean;
+  comparison?: ComparisonControls;
+}
+
+function VersionRow({ photo, item, selected, comparison }: VersionRowProps) {
   const { selectVersion, togglePick } = useSession();
+  const standing = comparison?.standing(item.id);
+  const compared = standing === "compared";
+  const dropped = standing === "dropped";
+  const waiting = standing === "waiting";
   const original = isOriginal(item);
   const picked = photo.pickId === item.id;
   const parent = item.parentId ? photo.versions.find((v) => v.id === item.parentId) : undefined;
@@ -59,13 +107,19 @@ function VersionRow({ photo, item, selected }: { photo: Photo; item: Version; se
   const changes = parent && !item.rationale ? describeChanges(item.params, parent.params) : "";
 
   return (
-    <li className={styles.row} data-selected={selected || undefined} data-original={original || undefined}>
+    <li
+      className={styles.row}
+      data-selected={(comparison ? selected && compared : selected) || undefined}
+      data-original={original || undefined}
+      data-comparing={comparison ? (compared ? "in" : dropped ? "dropped" : "out") : undefined}
+      data-selected-out={(comparison && selected && !compared) || undefined}
+    >
       <button
         type="button"
         className={styles.main}
         aria-current={selected || undefined}
         aria-label={`${label}, ${item.name}`}
-        onClick={() => selectVersion(item.id)}
+        onClick={() => (comparison ? comparison.focus(item.id) : selectVersion(item.id))}
       >
         <span className={styles.tile} aria-hidden="true">
           {original ? <Camera size={16} /> : item.letter}
@@ -85,6 +139,8 @@ function VersionRow({ photo, item, selected }: { photo: Photo; item: Version; se
                 {parent && !isOriginal(parent) && <span> · from {parent.letter}</span>}
               </>
             )}
+            {dropped && <span className={styles.dropped}> · Dropped</span>}
+            {waiting && <span className={styles.dropped}> · Waiting for room</span>}
           </span>
           {item.rationale ? (
             <span className={styles.rationale}>{item.rationale}</span>
@@ -93,6 +149,30 @@ function VersionRow({ photo, item, selected }: { photo: Photo; item: Version; se
           )}
         </span>
       </button>
+
+      {comparison && (
+        <Tooltip
+          label={compared ? "Drop from the comparison" : dropped ? "Restore to the comparison" : "Add to the comparison"}
+          keys={compared ? "X" : undefined}
+          side="right"
+        >
+          <button
+            type="button"
+            className={styles.compare}
+            aria-pressed={compared}
+            aria-label={
+              compared
+                ? `Drop ${label} from the comparison`
+                : dropped
+                  ? `Restore ${label} to the comparison`
+                  : `Add ${label} to the comparison`
+            }
+            onClick={() => comparison.toggle(item.id)}
+          >
+            {compared ? <Minus size={16} /> : <Plus size={16} />}
+          </button>
+        </Tooltip>
+      )}
 
       {item.seen ? (
         <Tooltip label={picked ? "Remove pick" : "Pick this version"} keys="P" side="right">

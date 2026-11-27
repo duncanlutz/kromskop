@@ -5,7 +5,17 @@
  */
 
 import { ALL_PARAMS, type ParamId } from "../model/params";
-import { ORIGINAL_ID, type Author, type CaptureInfo, type Params, type Photo, type Shoot, type Version } from "../model/types";
+import {
+  ORIGINAL_ID,
+  type Author,
+  type CaptureInfo,
+  type Note,
+  type Params,
+  type Photo,
+  type Region,
+  type Shoot,
+  type Version,
+} from "../model/types";
 
 const sampleUrls = import.meta.glob<string>("../../samples/*.jpg", { eager: true, query: "?url", import: "default" });
 
@@ -90,6 +100,7 @@ function buildPhoto(spec: PhotoSpec): Photo {
     versions,
     versionsIssued: versions.length - 1,
     pickId: spec.pick ? idOf(spec.pick) : null,
+    droppedIds: [],
   };
 }
 
@@ -265,6 +276,131 @@ const PHOTOS: PhotoSpec[] = [
     versions: [],
   },
 ];
+
+/*
+ * Spare looks, so a reviewer can ask for any number of versions of a photo.
+ * The entry at index n becomes the photo's version n + 1 when it has none.
+ */
+const SPARE_LOOKS: Array<Omit<VersionSpec, "letter" | "changes"> & { changes(parent: Params): Overrides }> = [
+  {
+    name: "Neutral base",
+    author: AGENT,
+    rationale: "A plain starting point: a small exposure lift and nothing else.",
+    changes: () => ({ exposure: 0.15, highlights: -10 }),
+  },
+  {
+    name: "Warmer",
+    author: AGENT,
+    from: "A",
+    rationale: "The same base, 350 K warmer, for a late-afternoon feel.",
+    changes: (parent) => ({ temp: parent.temp + 350, vibrance: 8 }),
+  },
+  {
+    name: "Cooler",
+    author: AGENT,
+    from: "A",
+    rationale: "The same base, 300 K cooler and a little less saturated, closer to open shade.",
+    changes: (parent) => ({ temp: parent.temp - 300, saturation: -10 }),
+  },
+  {
+    name: "Open shadows",
+    author: AGENT,
+    from: "A",
+    rationale: "Lifted the shadows and held the highlights for a softer, flatter file to grade from.",
+    changes: () => ({ shadows: 28, highlights: -30, blacks: 8 }),
+  },
+  {
+    name: "Muted",
+    author: AGENT,
+    from: "B",
+    rationale: "Pulled saturation back by a fifth for a quieter set.",
+    changes: () => ({ saturation: -20, vibrance: 0, contrast: -8 }),
+  },
+  {
+    name: "Crisp",
+    author: AGENT,
+    from: "A",
+    rationale: "Firmer blacks and more contrast, aimed at a print on white paper.",
+    changes: () => ({ contrast: 22, blacks: -14, whites: 8 }),
+  },
+];
+
+/** The same photo with exactly `count` lettered versions. */
+export function withVersionCount(photo: Photo, count: number): Photo {
+  const original = photo.versions[0]!;
+  const versions = photo.versions.slice(0, count + 1);
+  while (versions.length < count + 1) {
+    const index = versions.length - 1;
+    const look = SPARE_LOOKS[index % SPARE_LOOKS.length]!;
+    const letter = String.fromCharCode(65 + index);
+    const parent = versions.find((v) => v.letter === look.from) ?? original;
+    versions.push({
+      id: `${photo.id}-${letter.toLowerCase()}`,
+      letter,
+      name: look.name,
+      author: look.author,
+      rationale: look.rationale ?? null,
+      parentId: parent.id,
+      params: { ...parent.params, ...look.changes(parent.params) },
+      seen: true,
+    });
+  }
+  const pickId = versions.some((v) => v.id === photo.pickId) ? photo.pickId : null;
+  const droppedIds = photo.droppedIds.filter((id) => versions.some((v) => v.id === id));
+  return { ...photo, versions, versionsIssued: versions.length - 1, pickId, droppedIds };
+}
+
+/** Notes already on the first photo, one in each state. */
+export function buildMockNotes(): Record<string, Note[]> {
+  return {
+    p0412: [
+      {
+        id: "p0412-n1",
+        number: 1,
+        versionId: "p0412-a",
+        region: { x: 0.04, y: 0.03, width: 0.26, height: 0.17 },
+        text: "Sky is close to clipping at the top left.",
+        author: YOU,
+        state: { kind: "read" },
+      },
+      {
+        id: "p0412-n2",
+        number: 2,
+        versionId: "p0412-a",
+        region: { x: 0.07, y: 0.66, width: 0.3, height: 0.25 },
+        text: "Grass feels grey here. Can it be warmer?",
+        author: YOU,
+        state: { kind: "addressed", versionId: "p0412-b" },
+      },
+      {
+        id: "p0412-n3",
+        number: 3,
+        versionId: "p0412-c",
+        region: { x: 0.505, y: 0.6, width: 0, height: 0 },
+        text: "The denim looks right in this one.",
+        author: YOU,
+        state: { kind: "waiting" },
+      },
+    ],
+  };
+}
+
+/** What the scripted agent points at, per photo, and a fallback for the rest. */
+const POINTERS: Record<string, { region: Region; caption: string }> = {
+  p0412: {
+    region: { x: 0.452, y: 0.262, width: 0.09, height: 0.14 },
+    caption: "Skin runs a little orange on the cheek here.",
+  },
+};
+
+export function mockPointer(photoId: string): { region: Region; caption: string } {
+  return (
+    POINTERS[photoId] ?? {
+      region: { x: 0.38, y: 0.24, width: 0.22, height: 0.26 },
+      caption: "This area carries the most colour difference between the versions.",
+    }
+  );
+}
 
 export function buildMockShoot(): Shoot {
   return { name: "2026-11-14 Ozark portraits", photos: PHOTOS.map(buildPhoto) };

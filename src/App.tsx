@@ -1,10 +1,13 @@
-import { lazy, Suspense, useEffect, useState } from "react";
+import { lazy, Suspense, useEffect } from "react";
+import { CompareProvider } from "./compare/CompareState";
+import { CompareWorkspace } from "./compare/CompareWorkspace";
 import { DevelopWorkspace } from "./develop/DevelopWorkspace";
 import { MockSessionProvider } from "./mock/MockSession";
 import { PrefsProvider } from "./shell/Prefs";
 import { StubView } from "./shell/StubView";
 import { Toolbar } from "./shell/Toolbar";
-import { VIEWS, type View } from "./shell/ViewSwitch";
+import { ViewProvider, useView } from "./shell/ViewState";
+import { VIEWS } from "./shell/ViewSwitch";
 import { releaseFocusAfterClick, releaseFocusOnEscape } from "./ui/focus";
 import { TooltipProvider } from "./ui/Tooltip";
 import styles from "./App.module.css";
@@ -18,7 +21,24 @@ const MockControlsPopover = import.meta.env.DEV
   : null;
 
 export function App() {
-  const [view, setView] = useState<View>("develop");
+  return (
+    <PrefsProvider>
+      <ViewProvider>
+        {/* The mock stands in for the engine and MCP server until they exist. */}
+        <MockSessionProvider>
+          <CompareProvider>
+            <TooltipProvider delay={500}>
+              <Shell />
+            </TooltipProvider>
+          </CompareProvider>
+        </MockSessionProvider>
+      </ViewProvider>
+    </PrefsProvider>
+  );
+}
+
+function Shell() {
+  const { view, setView } = useView();
 
   // A control clicked with the mouse does not keep the keyboard, and Escape
   // lets go of any control, so the page's shortcuts are never left dead.
@@ -40,30 +60,21 @@ export function App() {
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, []);
+  }, [setView]);
 
   return (
-    <PrefsProvider>
-      {/* The mock stands in for the engine and MCP server until they exist. */}
-      <MockSessionProvider>
-        <TooltipProvider delay={500}>
-          <div className={styles.app}>
-            <Toolbar view={view} onViewChange={setView} />
-            {view === "develop" && <DevelopWorkspace />}
-            {view === "library" && (
-              <StubView name="Library" purpose="Every photo in the shoot as a grid, to sort, filter and choose what to develop." />
-            )}
-            {view === "compare" && (
-              <StubView name="Compare" purpose="Two to six versions side by side with linked zoom, to pick one and pin comments." />
-            )}
-            {MockControlsPopover && (
-              <Suspense fallback={null}>
-                <MockControlsPopover />
-              </Suspense>
-            )}
-          </div>
-        </TooltipProvider>
-      </MockSessionProvider>
-    </PrefsProvider>
+    <div className={styles.app}>
+      <Toolbar view={view} onViewChange={setView} />
+      {view === "develop" && <DevelopWorkspace />}
+      {view === "compare" && <CompareWorkspace />}
+      {view === "library" && (
+        <StubView name="Library" purpose="Every photo in the shoot as a grid, to sort, filter and choose what to develop." />
+      )}
+      {MockControlsPopover && (
+        <Suspense fallback={null}>
+          <MockControlsPopover />
+        </Suspense>
+      )}
+    </div>
   );
 }

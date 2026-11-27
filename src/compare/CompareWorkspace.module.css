@@ -1,0 +1,45 @@
+/* The same frame as Develop, so the photo does not jump between the two. */
+.workspace {
+  display: grid;
+  grid-template-columns: var(--panel-left-width) minmax(0, 1fr) var(--panel-right-width);
+  grid-template-rows: minmax(0, 1fr) var(--filmstrip-height);
+  grid-template-areas:
+    "versions centre panel"
+    "filmstrip filmstrip panel";
+  flex: 1;
+  min-height: 0;
+}
+
+.workspace > :nth-child(1) {
+  grid-area: versions;
+}
+
+.workspace > :nth-child(2) {
+  grid-area: centre;
+}
+
+.workspace > :nth-child(3) {
+  grid-area: panel;
+}
+
+.workspace > :nth-child(4) {
+  grid-area: filmstrip;
+}
+
+/* T clears everything but the tiles. */
+.workspace[data-panels="hidden"] {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+  grid-template-areas: "centre";
+}
+
+.workspace[data-panels="hidden"] > :nth-child(1) {
+  grid-area: centre;
+}
+
+.centre {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}

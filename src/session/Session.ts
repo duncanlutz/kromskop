@@ -1,6 +1,18 @@
 import { createContext, useContext, type ComponentType, type CSSProperties } from "react";
 import type { ParamId } from "../model/params";
-import type { AgentStatus, HistogramData, LoadProgress, PageStatus, Photo, Shoot, Version } from "../model/types";
+import type {
+  AgentPointer,
+  AgentStatus,
+  AgentViewRequest,
+  HistogramData,
+  LoadProgress,
+  Note,
+  PageStatus,
+  Photo,
+  Region,
+  Shoot,
+  Version,
+} from "../model/types";
 
 /** What the interface says when it wants a version of a photo drawn. */
 export interface PreviewProps {
@@ -11,6 +23,15 @@ export interface PreviewProps {
   /** For assistive technology. Empty when a label beside it already names the photo. */
   alt: string;
   className?: string;
+  style?: CSSProperties;
+}
+
+/** What Compare says when it wants a version's pixels to zoom and pan. */
+export interface PixelsProps {
+  photo: Photo;
+  version: Version;
+  className?: string;
+  /** Compare lays the surface out once and then only transforms it. */
   style?: CSSProperties;
 }
 
@@ -41,6 +62,20 @@ export interface Session {
    * part of the interface knows how the pixels are made.
    */
   Preview: ComponentType<PreviewProps>;
+  /**
+   * A version at the preview's full resolution, on a surface that can be
+   * scaled and moved freely without being drawn again.
+   */
+  Pixels: ComponentType<PixelsProps>;
+
+  /** Notes on the current photo, oldest first. */
+  notes: readonly Note[];
+  /** What the agent is pointing at on the current photo, if anything. */
+  agentPointer: AgentPointer | null;
+  /** The agent's latest request to move the Compare view. */
+  agentView: AgentViewRequest | null;
+  /** Versions of the current photo whose pixels are not ready yet. */
+  rendering: ReadonlySet<string>;
 
   /** The version of a photo that is, or would be, on screen. */
   shownVersion(photo: Photo): Version;
@@ -49,6 +84,8 @@ export interface Session {
   selectPhoto(photoId: string): void;
   selectVersion(versionId: string): void;
   togglePick(versionId: string): void;
+  /** Takes a version of the current photo out of the comparison, or puts it back. */
+  setDropped(versionId: string, dropped: boolean): void;
   /**
    * Brackets one gesture on the adjustments: a drag, a held key, a stay in
    * a number field. Between the two, `setParam` moves what is shown but
@@ -64,6 +101,13 @@ export interface Session {
    * a gesture this is an edit of its own, committed at once.
    */
   setParam(id: ParamId, value: number): void;
+
+  /** Pins a note to a region of a version. The agent reads it when it next asks. */
+  addNote(versionId: string, region: Region, text: string): void;
+  removeNote(noteId: string): void;
+  /** Turns what the agent is pointing at into a note, so it does not fade. */
+  keepAgentPointer(): void;
+  dismissAgentPointer(): void;
 }
 
 export const SessionContext = createContext<Session | null>(null);

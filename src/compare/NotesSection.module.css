@@ -1,0 +1,244 @@
+.notes {
+  padding-bottom: var(--space-12);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-8);
+  height: 32px;
+  padding: 0 var(--space-12);
+}
+
+.heading {
+  font-weight: var(--weight-medium);
+}
+
+.count {
+  color: var(--text-tertiary);
+}
+
+/* Unread notes are the person's open business, so the count is plain to see. */
+.count[data-waiting] {
+  color: var(--text-primary);
+}
+
+.detail,
+.prompt,
+.empty {
+  padding: 0 var(--space-12) var(--space-8);
+  color: var(--text-tertiary);
+}
+
+.prompt {
+  color: var(--text-primary);
+}
+
+.notes kbd {
+  font: inherit;
+  color: var(--text-secondary);
+}
+
+.list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.row {
+  position: relative;
+}
+
+.rowMain,
+.draft {
+  display: flex;
+  gap: var(--space-8);
+  width: 100%;
+  padding: var(--space-8) var(--space-12);
+  text-align: left;
+}
+
+.row[data-highlight] .rowMain {
+  background: var(--surface-subtle);
+}
+
+.rowMain:focus-visible {
+  outline-offset: -2px;
+}
+
+/* The same square tag that marks the note on the photo. */
+.number {
+  --mark: #f2f2f2;
+  flex: none;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 var(--space-4);
+  background: #141414;
+  box-shadow: 0 0 0 1px var(--mark);
+  color: var(--mark);
+  font-size: var(--size-11);
+  font-weight: var(--weight-medium);
+  font-variant-numeric: tabular-nums;
+  line-height: 16px;
+  text-align: center;
+}
+
+.number[data-tone="agent"] {
+  --mark: var(--accent-agent);
+}
+
+.number[data-tone="addressed"] {
+  --mark: #8c8c8c;
+}
+
+.number[data-tone="draft"] {
+  box-shadow: none;
+  outline: 1px dashed var(--mark);
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.text {
+  padding-right: var(--space-16);
+  color: var(--text-primary);
+}
+
+.state {
+  margin-top: 2px;
+  color: var(--text-tertiary);
+  font-size: var(--size-11);
+  line-height: var(--leading-11);
+  letter-spacing: var(--tracking-small);
+}
+
+.state[data-state="waiting"] {
+  color: var(--text-secondary);
+}
+
+.state[data-state="read"],
+.state[data-state="kept"] {
+  color: var(--accent-agent);
+}
+
+.answer {
+  display: inline-grid;
+  place-items: center;
+  width: 14px;
+  height: 14px;
+  margin: 0 2px;
+  border-radius: 3px;
+  box-shadow: inset 0 0 0 1px var(--text-tertiary);
+  color: var(--text-secondary);
+  font-weight: var(--weight-semibold);
+  line-height: 1;
+}
+
+.remove {
+  position: absolute;
+  top: var(--space-4);
+  right: var(--space-8);
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-control);
+  color: var(--text-tertiary);
+  opacity: 0;
+}
+
+.row:hover .remove,
+.remove:focus-visible {
+  opacity: 1;
+}
+
+.remove:hover {
+  background: var(--surface-control);
+  color: var(--text-primary);
+}
+
+/* What the agent is pointing at. It fades with the mark on the photo. */
+.pointer {
+  margin-bottom: var(--space-4);
+  padding: var(--space-8) var(--space-12);
+  box-shadow: inset 2px 0 0 var(--accent-agent);
+  animation: pointer-row-fade linear forwards;
+}
+
+.pointerFrom {
+  color: var(--accent-agent);
+  font-size: var(--size-11);
+  line-height: var(--leading-11);
+  letter-spacing: var(--tracking-small);
+}
+
+.pointerActions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  margin-top: var(--space-8);
+}
+
+@keyframes pointer-row-fade {
+  0%,
+  80% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* A note being written. */
+.draft {
+  background: var(--surface-control);
+}
+
+.input {
+  width: 100%;
+  height: 24px;
+  padding: 0 var(--space-8);
+  border: 0;
+  border-radius: var(--radius-control);
+  background: var(--surface-well);
+  color: var(--text-primary);
+  outline: 1px solid var(--focus-ring);
+  outline-offset: 0;
+  user-select: text;
+  -webkit-user-select: text;
+  cursor: text;
+}
+
+.input::placeholder {
+  color: var(--text-tertiary);
+}
+
+.draft .state {
+  margin-top: var(--space-4);
+}
+
+.add {
+  padding: var(--space-4) var(--space-12) 0;
+}
+
+.addButton {
+  height: 24px;
+  padding: 0 var(--space-8);
+  border-radius: var(--radius-control);
+  box-shadow: inset 0 0 0 1px var(--hairline-strong);
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+.addButton:hover {
+  background: var(--surface-control);
+}
+
+.addButton kbd {
+  margin-left: var(--space-8);
+}
