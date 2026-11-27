@@ -190,10 +190,18 @@ function reduce(state: MockState, action: Action): MockState {
       // new version; only the person's own open working copy takes it directly.
       const change = changeParam(photo, shownVersionId(state, photo), action.id, action.value, { kind: "you" }, { name: "Adjusted" });
       if (change.photo === photo) return state;
+      // A working copy that was discarded hands its notes to the version it
+      // was made from, which looks the same, and is no longer dropped.
+      const gone = change.discarded;
+      const next = gone ? { ...change.photo, droppedIds: change.photo.droppedIds.filter((id) => id !== gone) } : change.photo;
+      const notes = gone
+        ? { ...state.notes, [photo.id]: (state.notes[photo.id] ?? []).map((n) => (n.versionId === gone ? { ...n, versionId: change.versionId } : n)) }
+        : state.notes;
       return {
         ...state,
-        shoot: updatePhoto(state, photo.id, () => change.photo),
+        shoot: updatePhoto(state, photo.id, () => next),
         shown: { ...state.shown, [photo.id]: change.versionId },
+        notes,
       };
     }
 
@@ -384,8 +392,8 @@ function reduce(state: MockState, action: Action): MockState {
         ...state,
         stamp,
         shoot: updatePhoto(state, photo.id, (p) => ({ ...p, versions: [...p.versions, version] })),
-        // The view follows a new version, as it does in Develop.
-        shown: { ...state.shown, [photo.id]: version.id },
+        // The agent asks Compare to show its new version; Compare decides
+        // whether and when, so a drag in progress is not interrupted.
         notes: {
           ...state.notes,
           [photo.id]: notes.map((n) =>

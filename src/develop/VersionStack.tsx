@@ -7,9 +7,10 @@ import styles from "./VersionStack.module.css";
 
 /** What Compare adds to the stack: which versions are in the comparison. */
 export interface ComparisonControls {
-  isCompared(versionId: string): boolean;
-  /** Dropped by the person, as opposed to never having been added. */
-  isDropped(versionId: string): boolean;
+  /** In the comparison, dropped by the person, waiting for room, or simply out. */
+  standing(versionId: string): "compared" | "dropped" | "waiting" | "out";
+  /** Said under the heading when the comparison is full and something cannot be added. */
+  message: string | null;
   toggle(versionId: string): void;
   /** Brings a version into the comparison if need be, and focuses it. */
   focus(versionId: string): void;
@@ -30,6 +31,12 @@ export function VersionStack({ comparison }: { comparison?: ComparisonControls }
           <span className={`${styles.count} num`}>{comparison ? `${comparison.count} of ${count} compared` : count}</span>
         )}
       </header>
+
+      {status === "ready" && comparison?.message && (
+        <p className={styles.full} role="status">
+          {comparison.message}
+        </p>
+      )}
 
       {status === "empty" && <p className={styles.note}>No photo open.</p>}
       {status === "loading" && <p className={styles.note}>Reading versions…</p>}
@@ -88,8 +95,10 @@ interface VersionRowProps {
 
 function VersionRow({ photo, item, selected, comparison }: VersionRowProps) {
   const { selectVersion, togglePick } = useSession();
-  const compared = comparison?.isCompared(item.id) ?? false;
-  const dropped = comparison?.isDropped(item.id) ?? false;
+  const standing = comparison?.standing(item.id);
+  const compared = standing === "compared";
+  const dropped = standing === "dropped";
+  const waiting = standing === "waiting";
   const original = isOriginal(item);
   const picked = photo.pickId === item.id;
   const parent = item.parentId ? photo.versions.find((v) => v.id === item.parentId) : undefined;
@@ -103,6 +112,7 @@ function VersionRow({ photo, item, selected, comparison }: VersionRowProps) {
       data-selected={(comparison ? selected && compared : selected) || undefined}
       data-original={original || undefined}
       data-comparing={comparison ? (compared ? "in" : dropped ? "dropped" : "out") : undefined}
+      data-selected-out={(comparison && selected && !compared) || undefined}
     >
       <button
         type="button"
@@ -130,6 +140,7 @@ function VersionRow({ photo, item, selected, comparison }: VersionRowProps) {
               </>
             )}
             {dropped && <span className={styles.dropped}> · Dropped</span>}
+            {waiting && <span className={styles.dropped}> · Waiting for room</span>}
           </span>
           {item.rationale ? (
             <span className={styles.rationale}>{item.rationale}</span>

@@ -135,6 +135,14 @@
   color: var(--text-primary);
 }
 
+/* Compare only: why something cannot be added. Plain text, no alarm. */
+.full {
+  flex: none;
+  padding: var(--space-8) var(--space-12);
+  border-bottom: 1px solid var(--hairline);
+  color: var(--text-primary);
+}
+
 /*
  * Compare only. A version left out of the comparison stays in the list,
  * dimmed, with a plus to bring it back; one that is in has a minus.

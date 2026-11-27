@@ -62,7 +62,16 @@ export function CompareStage() {
       {enough && mode === "split" && (
         <div className={styles.single}>
           <Frame photo={photo}>
-            <Viewport photo={photo} layers={[{ version: focus }, { version: against, clip: compare.split }]} activeId={focus.id}>
+            {/* Each version shows on its own side of the divider, with its own notes. */}
+            <Viewport
+              photo={photo}
+              layers={[
+                { version: focus, clip: { from: compare.split, to: 1 } },
+                { version: against, clip: { from: 0, to: compare.split } },
+              ]}
+              activeId={focus.id}
+              focusOnPress={false}
+            >
               <Divider />
             </Viewport>
             <div className={styles.labels} data-ends>
@@ -125,8 +134,12 @@ function Frame({ photo, children }: { photo: Photo; children: ReactNode }) {
 
 /** The Split divider. It is dragged by its line or by the grip under it. */
 function Divider() {
-  const { split, setSplit, humanInput } = useCompare();
+  const { split, setSplit, beginDrag, endDrag } = useCompare();
   const dragging = useRef(false);
+  const stop = () => {
+    dragging.current = false;
+    endDrag();
+  };
 
   const move = (event: PointerEvent<HTMLDivElement>) => {
     const viewport = event.currentTarget.parentElement?.getBoundingClientRect();
@@ -143,8 +156,9 @@ function Divider() {
       aria-valuenow={Math.round(split * 100)}
       onPointerDown={(event) => {
         event.stopPropagation();
-        humanInput();
         dragging.current = true;
+        // The agent may not change what is on either side while the divider moves.
+        beginDrag();
         event.currentTarget.setPointerCapture(event.pointerId);
       }}
       onPointerMove={(event) => {
@@ -153,7 +167,11 @@ function Divider() {
       }}
       onPointerUp={(event) => {
         event.stopPropagation();
-        dragging.current = false;
+        stop();
+      }}
+      onPointerCancel={(event) => {
+        event.stopPropagation();
+        stop();
       }}
     />
   );

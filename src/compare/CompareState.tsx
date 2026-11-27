@@ -6,13 +6,27 @@ import {
   useMemo,
   useRef,
   useState,
-  type MutableRefObject,
   type ReactNode,
 } from "react";
-import { ORIGINAL_ID, type Photo, type Region, type Version } from "../model/types";
+import type { AgentViewRequest, Region, Version } from "../model/types";
 import { fromQuery } from "../platform/query";
 import { useSession } from "../session/Session";
 import { useView } from "../shell/ViewState";
+import {
+  addToComparison,
+  agentMayFocus,
+  comparedVersions,
+  focusAfterReference,
+  isFull,
+  MAX_COMPARED,
+  reconcile,
+  removeFromComparison,
+  standingOf,
+  startComparison,
+  type Comparison,
+  type FocusShift,
+  type Standing,
+} from "./comparison";
 import { actualSizeScale, clampCentre, explicit, FIT_VIEW, maxScale, place, type Offset, type Size, type View } from "./view";
 
 export type CompareMode = "grid" | "flip" | "split" | "reference";
@@ -24,8 +38,7 @@ export const COMPARE_MODES: Array<{ id: CompareMode; label: string; key: string;
   { id: "reference", label: "Reference", key: "R", hint: "One pinned, the others beside it" },
 ];
 
-/** Most versions shown at once. */
-export const MAX_COMPARED = 6;
+export { MAX_COMPARED };
 
 /** A note that has a place but no words yet. */
 export interface NoteDraft {
@@ -42,9 +55,19 @@ interface CompareState {
   /** Versions in the comparison, in the order of their tiles. */
   compared: Version[];
   isCompared(versionId: string): boolean;
-  /** True for a version the person dropped, as opposed to one never added. */
-  isDropped(versionId: string): boolean;
-  /** Adds a version to the comparison or takes it out. Nothing is deleted. */
+  /** Compared, dropped by the person, waiting for room, or simply out. */
+  standing(versionId: string): Standing;
+  /** True when six are compared and nothing more can be added. */
+  full: boolean;
+  /**
+   * Why a version is not being compared although it could be: the
+   * comparison is full. Null when there is nothing to say.
+   */
+  fullMessage: string | null;
+  /**
+   * Adds a version to the comparison or takes it out. Nothing is deleted,
+   * and adding never removes another: when six are compared it is refused.
+   */
   toggleCompared(versionId: string): void;
   dropFocused(): void;
   /** Brings back the version dropped most recently. */
@@ -64,8 +87,13 @@ interface CompareState {
   /** True while the view is where the agent put it. Any input from a person ends it. */
   following: boolean;
   humanInput(): void;
-  /** Set while a person is dragging; the agent must not move the view then. */
-  dragging: MutableRefObject<boolean>;
+  /**
+   * Brackets any pointer drag by the person: panning, drawing a note,
+   * moving the divider. The agent's requests to move the view wait until
+   * the drag has ended.
+   */
+  beginDrag(): void;
+  endDrag(): void;
 
   markersHidden: boolean;
   toggleMarkers(): void;
@@ -128,26 +156,15 @@ export function useCompareView(): CompareView {
  * not here: that belongs to the photo and comes from the session.
  */
 interface PhotoChoices {
-  /** The original stays out until asked for: versions are what is being judged. */
-  withOriginal: boolean;
+  /** Null until the photo has been seen in Compare. */
+  comparison: Comparison | null;
   againstId: string | null;
   referenceId: string | null;
+  /** A focus that Reference moved off the pinned version, to put back on leaving. */
+  shift: FocusShift | null;
 }
 
-const DEFAULT_CHOICES: PhotoChoices = { withOriginal: false, againstId: null, referenceId: null };
-
-function comparedVersions(photo: Photo | null, choices: PhotoChoices, focusId: string | undefined): Version[] {
-  if (!photo) return [];
-  const lettered = photo.versions.filter((v) => v.letter && !photo.droppedIds.includes(v.id));
-  const original = choices.withOriginal ? photo.versions.filter((v) => !v.letter) : [];
-  const all = [...lettered, ...original];
-  // More than six cannot be judged at once: the oldest give way, never the pick or the focus.
-  while (all.length > MAX_COMPARED) {
-    const index = all.findIndex((v) => v.id !== photo.pickId && v.id !== focusId && v.id !== choices.referenceId);
-    all.splice(index < 0 ? 0 : index, 1);
-  }
-  return all;
-}
+const DEFAULT_CHOICES: PhotoChoices = { comparison: null, againstId: null, referenceId: null, shift: null };
 
 export function CompareProvider({ children }: { children: ReactNode }) {
   const session = useSession();
@@ -168,6 +185,11 @@ export function CompareProvider({ children }: { children: ReactNode }) {
   const [moving, setMoving] = useState<{ view: View; offsets: Record<string, Offset> }>({ view: FIT_VIEW, offsets: {} });
   const [fit, setFit] = useState(0);
   const dragging = useRef(false);
+  /** A version the person asked to add while six were compared. */
+  const [refused, setRefused] = useState<string | null>(null);
+  /** An agent request that arrived mid-drag, kept until the drag ends. */
+  const [held, setHeld] = useState<AgentViewRequest | null>(null);
+  const [released, setReleased] = useState(0);
 
   const choices = choicesByPhoto[photoId] ?? DEFAULT_CHOICES;
   const setChoices = useCallback(
@@ -178,8 +200,19 @@ export function CompareProvider({ children }: { children: ReactNode }) {
     [photoId],
   );
 
-  const compared = useMemo(() => comparedVersions(photo, choices, version?.id), [photo, choices, version?.id]);
+  // The comparison as it stands now: what was remembered, brought up to date
+  // with any version that has arrived since. Arrivals never displace a tile.
+  const comparison = useMemo(
+    () => (photo ? reconcile(choices.comparison ?? startComparison(photo), photo) : null),
+    [photo, choices.comparison],
+  );
+  useEffect(() => {
+    if (comparison && comparison !== choices.comparison) setChoices((c) => ({ ...c, comparison }));
+  }, [comparison, choices.comparison, setChoices]);
+
+  const compared = useMemo(() => (photo && comparison ? comparedVersions(comparison, photo) : []), [photo, comparison]);
   const focus = compared.find((v) => v.id === version?.id) ?? null;
+  const full = !!photo && !!comparison && isFull(comparison, photo);
 
   // A new photo starts fitted, with nothing half-written.
   useEffect(() => {
@@ -187,6 +220,8 @@ export function CompareProvider({ children }: { children: ReactNode }) {
     setDraftState(null);
     setNoteToolState(false);
     setFollowing(false);
+    setRefused(null);
+    setHeld(null);
   }, [photoId]);
 
   // The focus is always one of the tiles. If the current version is not
@@ -210,29 +245,53 @@ export function CompareProvider({ children }: { children: ReactNode }) {
     );
   }, [compared, focus, reference, choices.againstId, photo?.pickId]);
 
-  /** Puts a version among the tiles, whether it was dropped or never added. */
+  /**
+   * The person asks for a version to be among the tiles. Refused, with the
+   * reason kept for display, when six are compared already.
+   */
   const include = useCallback(
-    (versionId: string) => {
-      if (versionId === ORIGINAL_ID) setChoices((c) => (c.withOriginal ? c : { ...c, withOriginal: true }));
-      else setDropped(versionId, false);
+    (versionId: string): boolean => {
+      if (!photo || !comparison) return false;
+      const result = addToComparison(comparison, photo, versionId);
+      if (result.outcome === "full") {
+        setRefused(versionId);
+        return false;
+      }
+      if (result.outcome === "added") {
+        setChoices((c) => ({ ...c, comparison: result.comparison }));
+        if (result.restore) setDropped(versionId, false);
+      }
+      return true;
     },
-    [setChoices, setDropped],
+    [photo, comparison, setChoices, setDropped],
   );
 
   const focusVersion = useCallback(
     (versionId: string) => {
       if (versionId === version?.id && compared.some((v) => v.id === versionId)) return;
+      if (!include(versionId)) return;
       // The version just left becomes the other half of the pair.
       if (version && version.id !== versionId && compared.some((v) => v.id === version.id)) {
         setChoices((c) => ({ ...c, againstId: version.id }));
       }
-      include(versionId);
       selectVersion(versionId);
     },
     [version, compared, setChoices, include, selectVersion],
   );
 
-  const setMode = setModeState;
+  const setMode = useCallback(
+    (next: CompareMode) => {
+      // Leaving Reference puts the focus back where Reference took it from,
+      // unless the person has chosen another version since.
+      if (mode === "reference" && next !== "reference") {
+        const back = focusAfterReference(choices.shift, version?.id, compared);
+        if (back) selectVersion(back);
+        setChoices((c) => (c.shift ? { ...c, shift: null } : c));
+      }
+      setModeState(next);
+    },
+    [mode, choices.shift, version?.id, compared, selectVersion, setChoices],
+  );
 
   // Reference needs a pin: the pick if there is one, else the first tile.
   useEffect(() => {
@@ -245,32 +304,44 @@ export function CompareProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!active || mode !== "reference" || !reference || !focus || focus.id !== reference.id) return;
     const other = compared.find((v) => v.id !== reference.id);
-    if (other) selectVersion(other.id);
-  }, [active, mode, reference, focus, compared, selectVersion]);
+    if (!other) return;
+    setChoices((c) => ({ ...c, shift: { from: reference.id, to: other.id } }));
+    selectVersion(other.id);
+  }, [active, mode, reference, focus, compared, selectVersion, setChoices]);
+
+  const takeOut = useCallback(
+    (versionId: string) => {
+      if (!comparison) return;
+      const removed = removeFromComparison(comparison, versionId);
+      // Taking the original out again is not a drop: it was only ever a guest.
+      if (removed.drop) setDropped(versionId, true);
+      setChoices((c) => ({ ...c, comparison: removed.comparison, referenceId: c.referenceId === versionId ? null : c.referenceId }));
+      // Room has been made, so there is nothing left to explain.
+      setRefused(null);
+    },
+    [comparison, setChoices, setDropped],
+  );
 
   const toggleCompared = useCallback(
     (versionId: string) => {
-      if (!compared.some((v) => v.id === versionId)) return include(versionId);
-      // Taking the original out again is not a drop: it was only ever a guest.
-      if (versionId === ORIGINAL_ID) setChoices((c) => ({ ...c, withOriginal: false }));
-      else setDropped(versionId, true);
-      setChoices((c) => (c.referenceId === versionId ? { ...c, referenceId: null } : c));
+      if (compared.some((v) => v.id === versionId)) takeOut(versionId);
+      else include(versionId);
     },
-    [compared, include, setChoices, setDropped],
+    [compared, include, takeOut],
   );
 
   const dropFocused = useCallback(() => {
     if (!focus) return;
     const index = compared.findIndex((v) => v.id === focus.id);
     const next = compared[index + 1] ?? compared[index - 1];
-    toggleCompared(focus.id);
+    takeOut(focus.id);
     if (next) selectVersion(next.id);
-  }, [focus, compared, toggleCompared, selectVersion]);
+  }, [focus, compared, takeOut, selectVersion]);
 
   const lastDropped = photo?.droppedIds[photo.droppedIds.length - 1] ?? null;
   const restoreLast = useCallback(() => {
-    if (lastDropped) setDropped(lastDropped, false);
-  }, [lastDropped, setDropped]);
+    if (lastDropped) include(lastDropped);
+  }, [lastDropped, include]);
 
   const swapPair = useCallback(() => {
     if (against) focusVersion(against.id);
@@ -356,23 +427,57 @@ export function CompareProvider({ children }: { children: ReactNode }) {
 
   /* ----- the agent moving the view ----- */
 
+  const applyAgentView = useCallback(
+    (request: AgentViewRequest) => {
+      const target = request.focusVersionId;
+      // The agent may only take the view to a version that has a tile. It does
+      // not undo a drop or push into a full comparison; its caption still shows.
+      if (target && !(photo && comparison && agentMayFocus(comparison, photo, target))) return;
+      if (target && target !== version?.id) selectVersion(target);
+      if (request.centre && request.magnification && fit > 0) {
+        const scale = Math.min(maxScale(), fit * request.magnification);
+        setMoving({ view: { fit: false, scale, cx: request.centre.x, cy: request.centre.y }, offsets: {} });
+      }
+      setFollowing(true);
+    },
+    [photo, comparison, version?.id, selectVersion, fit],
+  );
+
   const appliedStamp = useRef(agentView?.stamp ?? 0);
   useEffect(() => {
     if (!agentView || agentView.stamp <= appliedStamp.current) return;
     appliedStamp.current = agentView.stamp;
-    // A person in the middle of a drag keeps the view; the request is let go.
-    if (dragging.current || !active) return;
-    const target = agentView.focusVersionId;
-    if (target) {
-      include(target);
-      if (target !== version?.id) selectVersion(target);
-    }
-    if (agentView.centre && agentView.magnification && fit > 0) {
-      const scale = Math.min(maxScale(), fit * agentView.magnification);
-      setMoving({ view: { fit: false, scale, cx: agentView.centre.x, cy: agentView.centre.y }, offsets: {} });
-    }
-    setFollowing(true);
-  }, [active, agentView, fit, version?.id, selectVersion, include]);
+    if (!active) return;
+    // While the person is dragging, the request waits for the drag to end.
+    if (dragging.current) setHeld(agentView);
+    else applyAgentView(agentView);
+  }, [active, agentView, applyAgentView]);
+
+  // A drag has ended: whatever the agent asked for meanwhile happens now.
+  useEffect(() => {
+    if (!held || dragging.current) return;
+    setHeld(null);
+    applyAgentView(held);
+  }, [released, held, applyAgentView]);
+
+  const beginDrag = useCallback(() => {
+    dragging.current = true;
+  }, []);
+  const endDrag = useCallback(() => {
+    if (!dragging.current) return;
+    dragging.current = false;
+    setReleased((count) => count + 1);
+  }, []);
+
+  const waiting = photo && comparison ? photo.versions.filter((v) => comparison.waiting.includes(v.id)) : [];
+  const refusedVersion = photo?.versions.find((v) => v.id === refused);
+  const fullMessage = !full
+    ? null
+    : refusedVersion
+      ? `Six is the most that can be compared at once. Drop one (X) to add ${refusedVersion.letter || "the original"}.`
+      : waiting.length > 0
+        ? `${waiting.map((v) => v.letter).join(", ")} ${waiting.length === 1 ? "is" : "are"} waiting: six are compared already. Drop one (X) to make room.`
+        : null;
 
   const state = useMemo<CompareState>(
     () => ({
@@ -380,7 +485,9 @@ export function CompareProvider({ children }: { children: ReactNode }) {
       setMode,
       compared,
       isCompared: (id) => compared.some((v) => v.id === id),
-      isDropped: (id) => photo?.droppedIds.includes(id) ?? false,
+      standing: (id) => (photo && comparison ? standingOf(comparison, photo, id) : "out"),
+      full,
+      fullMessage,
       toggleCompared,
       dropFocused,
       restoreLast,
@@ -393,7 +500,8 @@ export function CompareProvider({ children }: { children: ReactNode }) {
       setReference,
       following,
       humanInput,
-      dragging,
+      beginDrag,
+      endDrag,
       markersHidden,
       toggleMarkers: () => setMarkersHidden((hidden) => !hidden),
       panelsHidden,
@@ -422,6 +530,11 @@ export function CompareProvider({ children }: { children: ReactNode }) {
       setMode,
       compared,
       photo,
+      comparison,
+      full,
+      fullMessage,
+      beginDrag,
+      endDrag,
       toggleCompared,
       dropFocused,
       restoreLast,

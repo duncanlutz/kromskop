@@ -97,8 +97,8 @@ export function CompareWorkspace() {
       {!hidden && (
         <VersionStack
           comparison={{
-            isCompared: compare.isCompared,
-            isDropped: compare.isDropped,
+            standing: compare.standing,
+            message: compare.fullMessage,
             toggle: compare.toggleCompared,
             focus: compare.focusVersion,
             count: compare.compared.length,

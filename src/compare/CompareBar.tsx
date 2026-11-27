@@ -67,6 +67,7 @@ export function CompareBar() {
           <>
             <span className={styles.pointing}>
               {client} on {pointed.letter || "the original"}
+              {compare.isCompared(pointed.id) ? "" : " (not in the comparison)"}
             </span>
             <span className={styles.caption} title={agentPointer.caption}>
               {agentPointer.caption}

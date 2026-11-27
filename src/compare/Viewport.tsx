@@ -10,16 +10,21 @@ export interface Layer {
   version: Version;
   /** Kept mounted but not shown, so swapping it in costs nothing. */
   hidden?: boolean;
-  /** Show only this fraction of the tile, from the left. Used by Split. */
-  clip?: number;
+  /** Show only the part of the tile between these fractions of its width. Used by Split. */
+  clip?: { from: number; to: number };
 }
 
 interface ViewportProps {
   photo: Photo;
   /** Bottom to top. */
   layers: Layer[];
-  /** The version that takes input and whose notes are drawn. */
+  /** The version whose geometry the tile reports, and the fallback for input. */
   activeId: string;
+  /**
+   * Whether a press makes the pressed version the focus. Not in Split,
+   * where both versions are already on show and focusing would swap them.
+   */
+  focusOnPress?: boolean;
   children?: ReactNode;
 }
 
@@ -32,49 +37,67 @@ const POINT_SIZE = 5;
 
 const clamp01 = (value: number) => Math.min(1, Math.max(0, value));
 
+interface Press {
+  x: number;
+  y: number;
+  lastX: number;
+  lastY: number;
+  moved: boolean;
+  note: boolean;
+  /** The version under the pointer when it went down. */
+  versionId: string;
+}
+
 /**
  * A window onto one or more versions at the shared zoom and position.
  * Scroll or pinch zooms about the pointer, a drag pans, a click goes to 100%
  * and back. Shift moves this tile alone.
  */
-export function Viewport({ photo, layers, activeId, children }: ViewportProps) {
+export function Viewport({ photo, layers, activeId, focusOnPress = true, children }: ViewportProps) {
   const session = useSession();
   const compare = useCompare();
   const { view, offsets, pan, zoomAt, toggleZoom, reportFitScale } = useCompareView();
   const [element, size] = useElementSize<HTMLDivElement>();
-  const press = useRef<{ x: number; y: number; lastX: number; lastY: number; moved: boolean; note: boolean } | null>(null);
+  const press = useRef<Press | null>(null);
   const [grabbing, setGrabbing] = useState(false);
   /** A note region while it is being dragged out, as fractions of the photo. */
-  const [drawing, setDrawing] = useState<{ x0: number; y0: number; x1: number; y1: number } | null>(null);
+  const [drawing, setDrawing] = useState<{ versionId: string; x0: number; y0: number; x1: number; y1: number } | null>(null);
 
-  const active = place(view, offsets[activeId], size, photo);
+  const placeOf = (versionId: string) => place(view, offsets[versionId], size, photo);
+  const active = placeOf(activeId);
   const isFocus = compare.focus?.id === activeId;
 
   useEffect(() => {
     if (isFocus && active.fitScale > 0) reportFitScale(active.fitScale);
   }, [isFocus, active.fitScale, reportFitScale]);
 
-  const gesture = (alone: boolean): Gesture => ({ versionId: activeId, viewport: size, alone });
+  const gesture = (versionId: string, alone: boolean): Gesture => ({ versionId, viewport: size, alone });
   const local = (event: { clientX: number; clientY: number }) => {
     const rect = element.current!.getBoundingClientRect();
     return { x: event.clientX - rect.left, y: event.clientY - rect.top };
   };
-  /** A position in the tile as fractions of the photo. */
-  const onPhoto = (point: { x: number; y: number }) => ({
-    x: clamp01((point.x - active.left) / active.width),
-    y: clamp01((point.y - active.top) / active.height),
-  });
+  /** The version showing at a position: in Split, whichever side of the divider it is on. */
+  const versionAt = (point: { x: number }) => {
+    const across = size.width > 0 ? point.x / size.width : 0;
+    const showing = [...layers].reverse().find((layer) => !layer.hidden && (!layer.clip || (across >= layer.clip.from && across <= layer.clip.to)));
+    return showing?.version.id ?? activeId;
+  };
+  /** A position in the tile as fractions of a version's photo. */
+  const onPhoto = (point: { x: number; y: number }, versionId: string) => {
+    const at = placeOf(versionId);
+    return { x: clamp01((point.x - at.left) / at.width), y: clamp01((point.y - at.top) / at.height) };
+  };
 
   // Wheel needs a non-passive listener to stop the page from scrolling.
   const wheel = useRef<(event: WheelEvent) => void>(() => undefined);
   wheel.current = (event: WheelEvent) => {
     event.preventDefault();
-    compare.humanInput();
     // Shift turns a vertical wheel into a horizontal one on macOS.
     const delta = event.deltaY || event.deltaX;
     // Pinch arrives as a wheel with ctrlKey and small deltas.
     const factor = Math.exp(-delta * (event.ctrlKey ? 0.012 : 0.0022));
-    zoomAt(gesture(event.shiftKey), local(event), factor);
+    const point = local(event);
+    zoomAt(gesture(versionAt(point), event.shiftKey), point, factor);
   };
   useEffect(() => {
     const target = element.current;
@@ -86,13 +109,15 @@ export function Viewport({ photo, layers, activeId, children }: ViewportProps) {
 
   const onPointerDown = (event: PointerEvent<HTMLDivElement>) => {
     if (event.button !== 0) return;
-    compare.humanInput();
     event.currentTarget.setPointerCapture(event.pointerId);
+    // From press to release the view is the person's: the agent waits.
+    compare.beginDrag();
     const point = local(event);
-    press.current = { ...point, lastX: point.x, lastY: point.y, moved: false, note: compare.noteTool };
+    const versionId = versionAt(point);
+    press.current = { ...point, lastX: point.x, lastY: point.y, moved: false, note: compare.noteTool, versionId };
     if (compare.noteTool) {
-      const start = onPhoto(point);
-      setDrawing({ x0: start.x, y0: start.y, x1: start.x, y1: start.y });
+      const start = onPhoto(point, versionId);
+      setDrawing({ versionId, x0: start.x, y0: start.y, x1: start.x, y1: start.y });
     }
   };
 
@@ -103,61 +128,64 @@ export function Viewport({ photo, layers, activeId, children }: ViewportProps) {
     if (!pressed.moved && Math.hypot(point.x - pressed.x, point.y - pressed.y) < CLICK_SLOP) return;
     if (pressed.note) {
       pressed.moved = true;
-      const end = onPhoto(point);
+      const end = onPhoto(point, pressed.versionId);
       setDrawing((current) => current && { ...current, x1: end.x, y1: end.y });
       return;
     }
     if (!pressed.moved) {
       pressed.moved = true;
-      compare.dragging.current = true;
       setGrabbing(true);
     }
-    pan(gesture(event.shiftKey), point.x - pressed.lastX, point.y - pressed.lastY);
+    pan(gesture(pressed.versionId, event.shiftKey), point.x - pressed.lastX, point.y - pressed.lastY);
     pressed.lastX = point.x;
     pressed.lastY = point.y;
   };
 
-  const onPointerUp = (event: PointerEvent<HTMLDivElement>) => {
+  /** Ends the press. Returns it, so the caller can act on a completed one. */
+  const release = (): Press | null => {
     const pressed = press.current;
     press.current = null;
-    compare.dragging.current = false;
     setGrabbing(false);
+    compare.endDrag();
+    return pressed;
+  };
+
+  const onPointerUp = (event: PointerEvent<HTMLDivElement>) => {
+    const pressed = release();
     if (!pressed) return;
 
     if (pressed.note) {
       const box = drawing;
       setDrawing(null);
       if (!box) return;
-      const wide = Math.abs(box.x1 - box.x0) * active.width;
-      const tall = Math.abs(box.y1 - box.y0) * active.height;
+      const at = placeOf(pressed.versionId);
+      const wide = Math.abs(box.x1 - box.x0) * at.width;
+      const tall = Math.abs(box.y1 - box.y0) * at.height;
       const region: Region =
         wide < POINT_SIZE && tall < POINT_SIZE
           ? { x: box.x0, y: box.y0, width: 0, height: 0 }
           : { x: Math.min(box.x0, box.x1), y: Math.min(box.y0, box.y1), width: Math.abs(box.x1 - box.x0), height: Math.abs(box.y1 - box.y0) };
-      compare.focusVersion(activeId);
-      compare.setDraft({ versionId: activeId, region });
+      if (focusOnPress) compare.focusVersion(pressed.versionId);
+      compare.setDraft({ versionId: pressed.versionId, region });
       compare.setNoteTool(false);
       return;
     }
 
     if (!pressed.moved) {
-      compare.focusVersion(activeId);
-      toggleZoom(gesture(event.shiftKey), local(event));
+      if (focusOnPress) compare.focusVersion(pressed.versionId);
+      toggleZoom(gesture(pressed.versionId, event.shiftKey), local(event));
     }
   };
 
-  // Nothing is marked on a version whose pixels have not arrived.
-  const pending = session.rendering.has(activeId);
-  const notes = compare.markersHidden || pending ? [] : session.notes.filter((note) => note.versionId === activeId);
-  const pointer = session.agentPointer?.versionId === activeId ? session.agentPointer : null;
-  const draft = compare.draft?.versionId === activeId ? compare.draft.region : null;
-  const drawn: Region | null = drawing && {
-    x: Math.min(drawing.x0, drawing.x1),
-    y: Math.min(drawing.y0, drawing.y1),
-    width: Math.abs(drawing.x1 - drawing.x0),
-    height: Math.abs(drawing.y1 - drawing.y0),
+  // The system took the pointer away: nothing was clicked and nothing is drawn.
+  const onPointerCancel = () => {
+    release();
+    setDrawing(null);
   };
+
   const nextNumber = session.notes.reduce((max, note) => Math.max(max, note.number), 0) + 1;
+  const clipOf = (layer: Layer) =>
+    layer.clip === undefined ? undefined : `inset(0 ${(1 - layer.clip.to) * 100}% 0 ${layer.clip.from * 100}%)`;
 
   return (
     <div
@@ -167,53 +195,66 @@ export function Viewport({ photo, layers, activeId, children }: ViewportProps) {
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
-      onPointerCancel={onPointerUp}
+      onPointerCancel={onPointerCancel}
     >
       {size.width > 0 &&
         layers.map((layer) => {
-          const at = layer.version.id === activeId ? active : place(view, offsets[layer.version.id], size, photo);
-          const rendering = session.rendering.has(layer.version.id);
+          const id = layer.version.id;
+          const at = placeOf(id);
+          // Nothing is marked on a version whose pixels have not arrived.
+          const rendering = session.rendering.has(id);
+          const notes = compare.markersHidden || rendering ? [] : session.notes.filter((note) => note.versionId === id);
+          const pointer = session.agentPointer?.versionId === id ? session.agentPointer : null;
+          const draft = compare.draft?.versionId === id ? compare.draft.region : null;
+          const drawn: Region | null =
+            drawing && drawing.versionId === id
+              ? {
+                  x: Math.min(drawing.x0, drawing.x1),
+                  y: Math.min(drawing.y0, drawing.y1),
+                  width: Math.abs(drawing.x1 - drawing.x0),
+                  height: Math.abs(drawing.y1 - drawing.y0),
+                }
+              : null;
+
           return (
+            // Pixels and the marks that belong to them share one clip, so in
+            // Split each side shows its own version's notes and no other's.
             <div
-              key={layer.version.id}
+              key={id}
               className={styles.layer}
-              style={{
-                visibility: layer.hidden ? "hidden" : undefined,
-                clipPath: layer.clip === undefined ? undefined : `inset(0 ${(1 - layer.clip) * 100}% 0 0)`,
-              }}
+              style={{ visibility: layer.hidden ? "hidden" : undefined, clipPath: clipOf(layer) }}
             >
               {rendering ? (
                 <div className={styles.pending} style={frameStyle(at)} />
               ) : (
                 <session.Pixels photo={photo} version={layer.version} className={styles.pixels} style={pixelStyle(at, photo)} />
               )}
+              {notes.map((note) => (
+                <Mark
+                  key={note.id}
+                  at={at}
+                  region={note.region}
+                  label={String(note.number)}
+                  tone={note.state.kind === "waiting" ? "waiting" : note.state.kind === "addressed" ? "addressed" : "agent"}
+                  strong={compare.highlightedNoteId === note.id}
+                />
+              ))}
+              {draft && !compare.markersHidden && <Mark at={at} region={draft} label={String(nextNumber)} tone="draft" strong />}
+              {drawn && <Mark at={at} region={drawn} label={String(nextNumber)} tone="draft" strong />}
+              {pointer && (
+                <Mark
+                  key={pointer.id}
+                  at={at}
+                  region={pointer.region}
+                  label={session.agent.client ?? "Agent"}
+                  tone="pointer"
+                  strong
+                  style={{ animationDuration: `${pointer.lifetime}ms` }}
+                />
+              )}
             </div>
           );
         })}
-
-      {notes.map((note) => (
-        <Mark
-          key={note.id}
-          at={active}
-          region={note.region}
-          label={String(note.number)}
-          tone={note.state.kind === "waiting" ? "waiting" : note.state.kind === "addressed" ? "addressed" : "agent"}
-          strong={compare.highlightedNoteId === note.id}
-        />
-      ))}
-      {draft && !compare.markersHidden && <Mark at={active} region={draft} label={String(nextNumber)} tone="draft" strong />}
-      {drawn && <Mark at={active} region={drawn} label={String(nextNumber)} tone="draft" strong />}
-      {pointer && (
-        <Mark
-          key={pointer.id}
-          at={active}
-          region={pointer.region}
-          label={session.agent.client ?? "Agent"}
-          tone="pointer"
-          strong
-          style={{ animationDuration: `${pointer.lifetime}ms` }}
-        />
-      )}
       {children}
     </div>
   );
