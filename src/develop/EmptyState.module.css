@@ -1,0 +1,59 @@
+/* Set left and a little above centre, where a first print would sit. */
+.empty {
+  width: 400px;
+  margin-bottom: 6vh;
+}
+
+.heading {
+  font-size: var(--size-20);
+  line-height: var(--leading-20);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--tracking-title);
+}
+
+.lead {
+  margin-top: var(--space-8);
+  color: var(--text-secondary);
+  font-size: var(--size-13);
+  line-height: var(--leading-13);
+}
+
+.path {
+  color: var(--text-primary);
+}
+
+.actions {
+  margin-top: var(--space-24);
+}
+
+.agent {
+  display: flex;
+  gap: var(--space-8);
+  margin-top: var(--space-32);
+  padding-top: var(--space-16);
+  border-top: 1px solid var(--hairline-strong);
+}
+
+.agentLine {
+  display: flex;
+  gap: var(--space-8);
+  color: var(--text-primary);
+}
+
+.client {
+  color: var(--text-secondary);
+}
+
+.agentNote {
+  margin-top: var(--space-4);
+  color: var(--text-tertiary);
+}
+
+.command {
+  padding: 1px var(--space-4);
+  border-radius: var(--radius-control);
+  background: var(--surface-control);
+  color: var(--text-primary);
+  font-family: var(--font-code);
+  font-size: var(--size-11);
+}
