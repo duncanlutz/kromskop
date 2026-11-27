@@ -58,7 +58,7 @@
 }
 
 .separator {
-  margin: 0 6px;
+  margin: 0 var(--space-8);
   color: var(--text-disabled);
 }
 

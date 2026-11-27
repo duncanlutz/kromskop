@@ -17,7 +17,7 @@ export function Tooltip({ label, keys, side = "bottom", children }: TooltipProps
     <Base.Root>
       <Base.Trigger render={children} />
       <Base.Portal>
-        <Base.Positioner side={side} sideOffset={6} collisionPadding={8}>
+        <Base.Positioner side={side} sideOffset={4} collisionPadding={8}>
           <Base.Popup className={styles.popup}>
             {label}
             {keys && <span className={styles.keys}>{keys}</span>}

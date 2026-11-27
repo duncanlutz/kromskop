@@ -188,7 +188,7 @@
   gap: var(--space-12);
   flex: none;
   margin-top: auto;
-  padding: var(--space-8) var(--space-12) 10px;
+  padding: var(--space-8) var(--space-12) var(--space-12);
   color: var(--text-tertiary);
   font-size: var(--size-11);
   line-height: var(--leading-11);
