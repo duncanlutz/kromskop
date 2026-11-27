@@ -3,15 +3,12 @@ import { Filmstrip } from "../develop/Filmstrip";
 import { VersionStack } from "../develop/VersionStack";
 import { Viewer } from "../develop/Viewer";
 import { useSession } from "../session/Session";
+import { belongsToControl } from "../ui/keys";
 import { CompareBar } from "./CompareBar";
 import { useCompare, useCompareView } from "./CompareState";
 import { CompareStage } from "./CompareStage";
 import styles from "./CompareWorkspace.module.css";
 import { DifferencesPanel } from "./DifferencesPanel";
-
-function isTyping(target: EventTarget | null): boolean {
-  return target instanceof HTMLElement && (target.tagName === "INPUT" || target.tagName === "TEXTAREA");
-}
 
 /**
  * The main screen: the versions of one photo, judged against each other.
@@ -26,7 +23,9 @@ export function CompareWorkspace() {
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.metaKey || event.ctrlKey || event.altKey || isTyping(event.target)) return;
+      // A focused control keeps its own keys: Space on a button presses the
+      // button, it does not swap the pair.
+      if (event.metaKey || event.ctrlKey || event.altKey || belongsToControl(event)) return;
       const { shoot, photo } = session;
       if (!ready || !shoot || !photo) return;
       const { compared, focus } = compare;
