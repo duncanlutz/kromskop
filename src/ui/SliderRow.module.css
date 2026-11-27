@@ -1,0 +1,151 @@
+/*
+ * One adjustment: label, track, number.
+ *
+ * The row's text colour is its ink. Label, thumb, change line, marker and
+ * number all draw with it, so a changed row brightens as a whole and the
+ * agent's mark recolours the whole row with one animation.
+ */
+
+.row {
+  position: relative;
+  display: grid;
+  grid-template-columns: 76px minmax(0, 1fr) 44px;
+  align-items: center;
+  column-gap: var(--space-8);
+  height: var(--row-height);
+  color: var(--text-secondary);
+}
+
+.row[data-changed] {
+  color: var(--text-primary);
+}
+
+.row[data-disabled] {
+  color: var(--text-disabled);
+}
+
+/* The change marker sits in the panel's gutter, left of the label. */
+.marker {
+  position: absolute;
+  left: -9px;
+  top: 50%;
+  width: 4px;
+  height: 4px;
+  margin-top: -2px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0;
+}
+
+.row[data-changed] .marker {
+  opacity: 1;
+}
+
+.label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.track {
+  position: relative;
+  height: 100%;
+  touch-action: none;
+}
+
+.rail {
+  position: absolute;
+  inset: 50% 0 auto;
+  height: 2px;
+  margin-top: -1px;
+  background: var(--hairline-strong);
+}
+
+.track:hover .rail {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+/* The distance moved from the parent version's value. */
+.delta {
+  position: absolute;
+  top: 50%;
+  height: 2px;
+  margin-top: -1px;
+  background: currentColor;
+}
+
+/* Where the parent version had this slider: a mark hanging under the rail. */
+.parentTick {
+  position: absolute;
+  top: 50%;
+  width: 1px;
+  height: 6px;
+  margin-top: 1px;
+  background: var(--text-secondary);
+}
+
+.thumb {
+  position: absolute;
+  top: 50%;
+  width: 2px;
+  height: 12px;
+  margin: -6px 0 0 -1px;
+  background: currentColor;
+}
+
+.track:hover .thumb,
+.row[data-dragging] .thumb {
+  background: #ffffff;
+}
+
+.row[data-disabled] .thumb,
+.row[data-disabled] .track:hover .thumb {
+  background: currentColor;
+}
+
+.row[data-disabled] .track:hover .rail {
+  background: var(--hairline-strong);
+}
+
+.track:focus-visible {
+  outline: none;
+}
+
+.track:focus-visible .thumb {
+  background: #ffffff;
+  outline: 1px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+/* An agent's change glides; a person's follows the hand directly. */
+.row[data-agent-mark] .thumb,
+.row[data-agent-mark] .delta {
+  transition:
+    left var(--duration-move) var(--ease-out),
+    width var(--duration-move) var(--ease-out);
+}
+
+.field {
+  width: 100%;
+  height: 20px;
+  padding: 0 var(--space-4);
+  border: 0;
+  border-radius: var(--radius-control);
+  background: transparent;
+  text-align: right;
+  cursor: default;
+}
+
+.field:hover:not(:disabled) {
+  background: var(--surface-control);
+}
+
+.field:focus {
+  background: var(--surface-control);
+  color: var(--text-primary);
+  outline: 1px solid var(--focus-ring);
+  outline-offset: 0;
+  cursor: text;
+  user-select: text;
+  -webkit-user-select: text;
+}

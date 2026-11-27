@@ -1,0 +1,49 @@
+.button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-12);
+  height: 28px;
+  padding: 0 var(--space-12);
+  border-radius: var(--radius-control);
+  background: var(--surface-control);
+  box-shadow: inset 0 0 0 1px var(--hairline-strong);
+  color: var(--text-primary);
+  font-weight: var(--weight-medium);
+  white-space: nowrap;
+}
+
+.button:hover {
+  background: var(--surface-hover);
+}
+
+.button:active {
+  background: var(--surface-pressed);
+}
+
+/* The one thing to do on a screen. Light, because selection is light. */
+.button[data-primary] {
+  background: var(--selection);
+  box-shadow: none;
+  color: var(--text-inverse);
+}
+
+.button[data-primary]:hover {
+  background: #f2f2f2;
+}
+
+.button[data-primary]:active {
+  background: #cfcfcf;
+}
+
+.button:focus-visible {
+  outline-offset: 2px;
+}
+
+.keys {
+  color: var(--text-tertiary);
+  font-weight: var(--weight-regular);
+}
+
+.button[data-primary] .keys {
+  color: #5c5c5c;
+}
