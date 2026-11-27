@@ -1,0 +1,153 @@
+.bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  flex: none;
+  height: var(--infoline-height);
+  padding: 0 var(--space-12);
+  border-top: 1px solid var(--hairline);
+  background: var(--surface-window);
+  white-space: nowrap;
+}
+
+/* Text tabs, as in the Colour Mixer. */
+.modes {
+  display: flex;
+  gap: var(--space-16);
+  height: 100%;
+}
+
+.mode {
+  height: 100%;
+  color: var(--text-secondary);
+}
+
+.mode:hover {
+  color: var(--text-primary);
+}
+
+.mode[aria-selected="true"] {
+  color: var(--text-primary);
+  box-shadow: inset 0 -1px 0 var(--selection);
+}
+
+.mode:focus-visible {
+  outline-offset: -2px;
+}
+
+/* What the agent is pointing at, in its hue. Fades with the pointer. */
+.agent {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  flex: 1;
+  min-width: 0;
+  margin-left: var(--space-12);
+}
+
+/* Keys for the stage, shown while the agent has nothing to say. */
+.keys {
+  display: flex;
+  gap: var(--space-12);
+  overflow: hidden;
+  color: var(--text-tertiary);
+  font-size: var(--size-11);
+  letter-spacing: var(--tracking-small);
+}
+
+.keys kbd {
+  font: inherit;
+  color: var(--text-secondary);
+}
+
+.pointing {
+  flex: none;
+  color: var(--accent-agent);
+}
+
+.caption {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text-primary);
+}
+
+.action {
+  flex: none;
+  height: 20px;
+  padding: 0 var(--space-8);
+  border-radius: var(--radius-control);
+  box-shadow: inset 0 0 0 1px var(--hairline-strong);
+  color: var(--text-primary);
+}
+
+.action:hover {
+  background: var(--surface-control);
+}
+
+.dismiss {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 20px;
+  height: 20px;
+  border-radius: var(--radius-control);
+  color: var(--text-tertiary);
+}
+
+.dismiss:hover {
+  background: var(--surface-control);
+  color: var(--text-primary);
+}
+
+/* A pill, by request: the view is where the agent put it. */
+.following {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  flex: none;
+  height: 20px;
+  padding: 0 var(--space-8) 0 var(--space-4);
+  border-radius: 10px;
+  box-shadow: inset 0 0 0 1px var(--accent-agent);
+  color: var(--accent-agent);
+  font-size: var(--size-11);
+  letter-spacing: var(--tracking-small);
+}
+
+.followingDot {
+  width: 6px;
+  height: 6px;
+  margin: 0 3px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.quiet {
+  flex: none;
+  color: var(--text-tertiary);
+  font-size: var(--size-11);
+  letter-spacing: var(--tracking-small);
+}
+
+.quiet:hover {
+  color: var(--text-primary);
+}
+
+.quiet kbd {
+  margin-left: var(--space-4);
+  font: inherit;
+  color: var(--text-secondary);
+}
+
+.zoom {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-4);
+  flex: none;
+  min-width: 72px;
+  color: var(--text-primary);
+}
+
+.zoom span {
+  color: var(--text-secondary);
+}

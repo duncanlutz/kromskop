@@ -1,0 +1,156 @@
+.viewport {
+  position: relative;
+  flex: none;
+  /* Set by the tile's frame: the photo's own shape. */
+  height: var(--tile-height);
+  overflow: hidden;
+  touch-action: none;
+}
+
+.viewport[data-cursor="zoom"] {
+  cursor: zoom-in;
+}
+
+.viewport[data-cursor="grab"] {
+  cursor: grab;
+}
+
+.viewport[data-cursor="grabbing"] {
+  cursor: grabbing;
+}
+
+.viewport[data-cursor="note"] {
+  cursor: crosshair;
+}
+
+.layer {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* Square corners, no shadow, and no transition: a swap is an instant cut. */
+.pixels {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: block;
+  transform-origin: 0 0;
+  will-change: transform;
+}
+
+/* A version still rendering: an empty frame where its pixels will land. */
+.pending {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  box-shadow: inset 0 0 0 1px var(--on-surround-line);
+}
+
+/*
+ * Marks. An outline alone would vanish on a matching tone, so each has a
+ * dark edge outside the light line. Tone says whose it is and where it
+ * stands: light for the person's own, the agent hue once the agent has read
+ * it or when the agent is pointing, grey when a version has answered it.
+ */
+.region,
+.point {
+  --mark: #f2f2f2;
+  position: absolute;
+  pointer-events: none;
+  box-shadow:
+    0 0 0 1px var(--mark),
+    0 0 0 2px rgba(0, 0, 0, 0.55),
+    inset 0 0 0 1px rgba(0, 0, 0, 0.35);
+}
+
+.point {
+  width: 7px;
+  height: 7px;
+  margin: -3.5px 0 0 -3.5px;
+  border-radius: 50%;
+}
+
+.region[data-tone="agent"],
+.point[data-tone="agent"],
+.region[data-tone="pointer"],
+.point[data-tone="pointer"] {
+  --mark: var(--accent-agent);
+}
+
+.region[data-tone="addressed"],
+.point[data-tone="addressed"] {
+  --mark: #8c8c8c;
+}
+
+.region[data-tone="draft"] {
+  box-shadow: none;
+  outline: 1px dashed var(--mark);
+  outline-offset: 0;
+}
+
+.region[data-strong],
+.point[data-strong] {
+  box-shadow:
+    0 0 0 2px var(--mark),
+    0 0 0 3px rgba(0, 0, 0, 0.55),
+    inset 0 0 0 1px rgba(0, 0, 0, 0.35);
+}
+
+.region[data-tone="draft"][data-strong] {
+  box-shadow: none;
+}
+
+/* The number, or the agent's name, on a tag at the top-left corner: above
+   the outline where there is room, inside it at the top edge of a tile. */
+.tag {
+  position: absolute;
+  left: -1px;
+  bottom: calc(100% + 4px);
+  min-width: 16px;
+  height: 16px;
+  padding: 0 var(--space-4);
+  background: #141414;
+  box-shadow: 0 0 0 1px var(--mark);
+  color: var(--mark);
+  font-size: var(--size-11);
+  font-weight: var(--weight-medium);
+  font-variant-numeric: tabular-nums;
+  line-height: 16px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.region[data-tag="inside"] .tag {
+  left: 0;
+  top: 0;
+  bottom: auto;
+}
+
+.point .tag {
+  left: 12px;
+  top: -5px;
+  bottom: auto;
+}
+
+.point[data-flip] .tag {
+  left: auto;
+  right: 12px;
+}
+
+/* The agent's pointer holds, then fades over its last fifth. */
+.region[data-tone="pointer"],
+.point[data-tone="pointer"] {
+  animation: pointer-fade linear forwards;
+}
+
+@keyframes pointer-fade {
+  0%,
+  80% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
