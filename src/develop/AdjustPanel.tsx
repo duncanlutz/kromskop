@@ -1,6 +1,7 @@
 import { useState } from "react";
 import {
   COLOUR_PARAMS,
+  hueBandOf,
   LIGHT_PARAMS,
   MIXER_CHANNELS,
   MIXER_CHANNEL_LABELS,
@@ -44,6 +45,7 @@ export function AdjustPanel() {
       <SliderRow
         key={def.id}
         def={def}
+        swatch={hueBandOf(def.id) ? `var(--band-${hueBandOf(def.id)})` : undefined}
         value={valueOf(def)}
         parentValue={parentValueOf(def)}
         agentMark={agentTouched[def.id]}

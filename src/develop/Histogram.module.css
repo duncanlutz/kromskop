@@ -25,10 +25,8 @@
   fill: #6e6e6e;
 }
 
-/*
- * Channel lines are a measurement of the photo, off by default, and the one
- * place chrome shows hue. They are thin lines at low chroma.
- */
+/* Channel lines are a measurement of the photo: thin, low in chroma, and
+   off until asked for. */
 .channel {
   fill: none;
   stroke-width: 1;
@@ -36,15 +34,15 @@
 }
 
 .channel[data-channel="red"] {
-  stroke: #c9766c;
+  stroke: var(--channel-red);
 }
 
 .channel[data-channel="green"] {
-  stroke: #7fae78;
+  stroke: var(--channel-green);
 }
 
 .channel[data-channel="blue"] {
-  stroke: #7491cf;
+  stroke: var(--channel-blue);
 }
 
 /* Clipping lamps in the top corners; they light when an end is cut off. */

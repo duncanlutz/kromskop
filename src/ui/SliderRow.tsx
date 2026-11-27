@@ -8,6 +8,8 @@ interface SliderRowProps {
   /** Value in the parent version. Null when there is nothing to compare with. */
   parentValue: number | null;
   onChange(value: number): void;
+  /** A CSS colour shown as a small chip before the label, where hue is the meaning. */
+  swatch?: string;
   /** Goes up each time the agent changes this slider; marks the row briefly. */
   agentMark?: number;
   disabled?: boolean;
@@ -16,7 +18,7 @@ interface SliderRowProps {
 /** Pointer travel within this distance of the thumb drags it without a jump. */
 const GRAB_RADIUS = 6;
 
-export function SliderRow({ def, value, parentValue, onChange, agentMark, disabled = false }: SliderRowProps) {
+export function SliderRow({ def, value, parentValue, onChange, swatch, agentMark, disabled = false }: SliderRowProps) {
   const track = useRef<HTMLDivElement>(null);
   const drag = useRef<{ lastX: number; position: number } | null>(null);
   const [dragging, setDragging] = useState(false);
@@ -140,6 +142,7 @@ export function SliderRow({ def, value, parentValue, onChange, agentMark, disabl
         onDoubleClick={reset}
         title={changed ? "Double-click to reset" : undefined}
       >
+        {swatch && <span className={styles.swatch} style={{ background: swatch }} aria-hidden="true" />}
         {def.label}
       </span>
 

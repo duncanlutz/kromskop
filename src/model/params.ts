@@ -71,6 +71,12 @@ const BAND_LABELS: Record<HueBand, string> = {
   magenta: "Magenta",
 };
 
+/** The band a mixer slider belongs to, or null for any other adjustment. */
+export function hueBandOf(id: ParamId): HueBand | null {
+  const band = id.split(".")[1];
+  return HUE_BANDS.find((item) => item === band) ?? null;
+}
+
 export function mixerParams(channel: MixerChannel): ParamDef[] {
   return HUE_BANDS.map((band) => percent(`${channel}.${band}`, BAND_LABELS[band]));
 }

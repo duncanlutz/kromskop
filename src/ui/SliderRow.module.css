@@ -47,6 +47,18 @@
   white-space: nowrap;
 }
 
+/* A square chip of the band's hue. It keeps its colour when the row dims. */
+.swatch {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: var(--space-8);
+}
+
+.row[data-disabled] .swatch {
+  opacity: 0.35;
+}
+
 .track {
   position: relative;
   height: 100%;

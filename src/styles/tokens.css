@@ -1,10 +1,10 @@
 /*
  * Design tokens.
  *
- * Chrome is strictly neutral: every surface, line and text colour below has
- * R = G = B, so nothing around a photo shifts how its colour is perceived.
- * The two accents are the only exceptions. They are drawn as thin rings, dots
- * and small labels, never as fills or glows.
+ * Chrome is neutral: every surface, line and text colour below has R = G = B,
+ * so nothing around a photo shifts how its colour is perceived. Colour appears
+ * only where it is the information: the two reserved accents, histogram
+ * channels and Colour Mixer bands. All of it is small and low in chroma.
  */
 
 :root {
@@ -35,6 +35,23 @@
   /* Reserved accents. */
   --accent-pick: #d9a441; /* a human pick: safelight amber */
   --accent-agent: #5fb0b7; /* the agent's identity and activity */
+
+  /*
+   * Functional colour: used only where the colour is the information.
+   * Small marks at low chroma, never fills of any size.
+   */
+  --channel-red: #c9766c;
+  --channel-green: #7fae78;
+  --channel-blue: #7491cf;
+
+  --band-red: #c4736c;
+  --band-orange: #c98d5c;
+  --band-yellow: #bfae5e;
+  --band-green: #7daa72;
+  --band-aqua: #63ae98;
+  --band-blue: #6c90c8;
+  --band-purple: #9480c4;
+  --band-magenta: #bd78ae;
 
   /* Surround presets for the area around the photo. */
   --surround-black: #000000;
