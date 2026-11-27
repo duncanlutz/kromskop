@@ -37,6 +37,7 @@ type Action =
   | { type: "togglePick"; versionId: string }
   | { type: "setParam"; id: ParamId; value: number }
   | { type: "agentState"; state: AgentState; detail?: string }
+  | { type: "agentNever" }
   | { type: "agentStart"; name: string; rationale: string }
   | { type: "agentSet"; versionId: string; photoId: string; id: ParamId; value: number }
   | { type: "agentSettle"; id: ParamId; count: number };
@@ -56,6 +57,13 @@ function agentDetail(state: AgentState, photo: Photo | undefined): string {
       return "Last connected 12 minutes ago";
   }
 }
+
+/** Before any client has connected: nobody to name. */
+const NO_AGENT_YET: AgentStatus = {
+  client: null,
+  state: "disconnected",
+  detail: "Kromskop is ready for an agent, but none has connected yet.",
+};
 
 function defaultVersionId(photo: Photo): string {
   return photo.pickId ?? photo.versions[photo.versions.length - 1]?.id ?? ORIGINAL_ID;
@@ -150,8 +158,11 @@ function reduce(state: MockState, action: Action): MockState {
     case "agentState":
       return {
         ...state,
-        agent: { ...state.agent, state: action.state, detail: action.detail ?? agentDetail(action.state, photo) },
+        agent: { client: MOCK_CLIENT, state: action.state, detail: action.detail ?? agentDetail(action.state, photo) },
       };
+
+    case "agentNever":
+      return { ...state, agent: NO_AGENT_YET };
 
     case "agentStart": {
       if (!photo) return state;
@@ -173,7 +184,7 @@ function reduce(state: MockState, action: Action): MockState {
         ...state,
         shoot,
         shown: { ...state.shown, [photo.id]: version.id },
-        agent: { ...state.agent, state: "working", detail: `Editing ${photo.fileName}, version ${letter}` },
+        agent: { client: MOCK_CLIENT, state: "working", detail: `Editing ${photo.fileName}, version ${letter}` },
       };
     }
 
@@ -206,6 +217,7 @@ function initialState(): MockState {
   const query = new URLSearchParams(window.location.search);
   const page = PAGES.find((p) => p === query.get("page")) ?? "ready";
   const agentState = AGENT_STATES.find((s) => s === query.get("agent")) ?? "waiting";
+  const never = query.get("agent") === "never";
   const shoot = buildMockShoot();
   const first = shoot.photos.find((p) => p.id === FIRST_PHOTO_ID);
   return {
@@ -214,7 +226,7 @@ function initialState(): MockState {
     shoot,
     photoId: FIRST_PHOTO_ID,
     shown: { [FIRST_PHOTO_ID]: FIRST_VERSION_ID },
-    agent: { client: MOCK_CLIENT, state: agentState, detail: agentDetail(agentState, first) },
+    agent: never ? NO_AGENT_YET : { client: MOCK_CLIENT, state: agentState, detail: agentDetail(agentState, first) },
     agentTouched: {},
     touchCount: 0,
   };
@@ -225,8 +237,9 @@ function initialState(): MockState {
 export interface MockControls {
   page: PageStatus;
   setPage(page: PageStatus): void;
-  agentState: AgentState;
-  setAgentState(state: AgentState): void;
+  /** "never" is the state before any client has connected. */
+  agentState: AgentState | "never";
+  setAgentState(state: AgentState | "never"): void;
   /** Plays the scripted agent: a new version, then three slider changes. */
   runAgentEdit(): void;
   agentEditRunning: boolean;
@@ -375,12 +388,13 @@ export function MockSessionProvider({ children }: { children: ReactNode }) {
         finishLoading.current = false;
         dispatch({ type: "page", page });
       },
-      agentState: state.agent.state,
-      setAgentState: (agentState) => dispatch({ type: "agentState", state: agentState }),
+      agentState: state.agent.client === null ? "never" : state.agent.state,
+      setAgentState: (agentState) =>
+        dispatch(agentState === "never" ? { type: "agentNever" } : { type: "agentState", state: agentState }),
       runAgentEdit,
       agentEditRunning,
     }),
-    [state.page, state.agent.state, runAgentEdit, agentEditRunning],
+    [state.page, state.agent, runAgentEdit, agentEditRunning],
   );
 
   return (

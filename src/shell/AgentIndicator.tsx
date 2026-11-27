@@ -1,5 +1,5 @@
 import { Warning } from "@phosphor-icons/react";
-import type { AgentState } from "../model/types";
+import type { AgentState, AgentStatus } from "../model/types";
 import styles from "./AgentIndicator.module.css";
 
 export const AGENT_STATE_LABELS: Record<AgentState, string> = {
@@ -9,6 +9,14 @@ export const AGENT_STATE_LABELS: Record<AgentState, string> = {
   done: "Done",
   disconnected: "Disconnected",
 };
+
+/**
+ * The state in words. A client that has never connected is not "disconnected":
+ * there is nobody to name yet.
+ */
+export function agentLabel(agent: AgentStatus): string {
+  return agent.client === null ? "No agent connected" : AGENT_STATE_LABELS[agent.state];
+}
 
 /** A dot, a ring or, for an error, a warning sign. Never an avatar. */
 export function AgentIndicator({ state }: { state: AgentState }) {

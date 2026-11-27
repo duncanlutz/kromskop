@@ -12,7 +12,14 @@ import { useMockControls } from "./MockSession";
 
 const TOGGLE_KEY = "m";
 
-const AGENT_STATES: AgentState[] = ["working", "waiting", "error", "done", "disconnected"];
+const AGENT_STATES: Array<{ id: AgentState | "never"; label: string }> = [
+  { id: "working", label: AGENT_STATE_LABELS.working },
+  { id: "waiting", label: AGENT_STATE_LABELS.waiting },
+  { id: "error", label: AGENT_STATE_LABELS.error },
+  { id: "done", label: AGENT_STATE_LABELS.done },
+  { id: "disconnected", label: "Disconnected (was connected)" },
+  { id: "never", label: "Never connected" },
+];
 const PAGES: Array<{ id: PageStatus; label: string }> = [
   { id: "ready", label: "Photo open" },
   { id: "loading", label: "Loading" },
@@ -45,7 +52,7 @@ export function MockControlsPopover() {
       <Choice
         legend="Agent state"
         name="mock-agent"
-        options={AGENT_STATES.map((id) => ({ id, label: AGENT_STATE_LABELS[id] }))}
+        options={AGENT_STATES}
         value={mock.agentState}
         onChange={mock.setAgentState}
       />

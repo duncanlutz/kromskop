@@ -56,8 +56,11 @@ export interface Shoot {
 export type AgentState = "working" | "waiting" | "error" | "done" | "disconnected";
 
 export interface AgentStatus {
-  /** Name the MCP client reported, for example "Claude Code". */
-  client: string;
+  /**
+   * Name the MCP client reported, for example "Claude Code". Null until a
+   * client has connected at least once; the interface then names nobody.
+   */
+  client: string | null;
   state: AgentState;
   /** A short line on what the state refers to. */
   detail: string;

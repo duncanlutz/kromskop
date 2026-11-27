@@ -1,4 +1,4 @@
-import { AGENT_STATE_LABELS, AgentIndicator } from "../shell/AgentIndicator";
+import { AgentIndicator, agentLabel } from "../shell/AgentIndicator";
 import { useSession } from "../session/Session";
 import { Button } from "../ui/Button";
 import styles from "./EmptyState.module.css";
@@ -25,8 +25,8 @@ export function EmptyState() {
         <AgentIndicator state={agent.state} />
         <div>
           <p className={styles.agentLine}>
-            <span className={styles.client}>{agent.client}</span>
-            <span>{connected ? AGENT_STATE_LABELS[agent.state] : "Not connected"}</span>
+            {agent.client && <span className={styles.client}>{agent.client}</span>}
+            <span>{agent.client && !connected ? "Not connected" : agentLabel(agent)}</span>
           </p>
           <p className={styles.agentNote}>
             {connected ? (

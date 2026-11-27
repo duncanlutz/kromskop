@@ -1,6 +1,6 @@
 import { Popover } from "@base-ui/react/popover";
 import { useSession } from "../session/Session";
-import { AGENT_STATE_LABELS, AgentIndicator } from "./AgentIndicator";
+import { AgentIndicator, agentLabel } from "./AgentIndicator";
 import styles from "./AgentStatusItem.module.css";
 
 const HINTS: Record<string, string | null> = {
@@ -13,29 +13,42 @@ const HINTS: Record<string, string | null> = {
 
 export function AgentStatusItem() {
   const { agent } = useSession();
-  const label = AGENT_STATE_LABELS[agent.state];
+  const label = agentLabel(agent);
   const connected = agent.state !== "disconnected";
 
   return (
     <Popover.Root>
-      <Popover.Trigger className={styles.item} data-state={agent.state} aria-label={`Agent: ${agent.client}, ${label}`}>
+      <Popover.Trigger
+        className={styles.item}
+        data-state={agent.state}
+        aria-label={agent.client ? `Agent: ${agent.client}, ${label}` : `Agent: ${label}`}
+      >
         <AgentIndicator state={agent.state} />
-        <span className={styles.client}>{agent.client}</span>
+        {agent.client && <span className={styles.client}>{agent.client}</span>}
         <span className={styles.state}>{label}</span>
       </Popover.Trigger>
       <Popover.Portal>
-        <Popover.Positioner side="bottom" align="end" sideOffset={6} collisionPadding={8}>
+        <Popover.Positioner side="bottom" align="end" sideOffset={8} collisionPadding={8}>
           <Popover.Popup className={styles.popup}>
-            <Popover.Title className={styles.title}>{agent.client}</Popover.Title>
-            <p className={styles.connection}>{connected ? "Connected over MCP on this Mac" : "Not connected"}</p>
-            <div className={styles.rule} />
-            <div className={styles.status}>
-              <AgentIndicator state={agent.state} />
-              <div>
-                <p className={styles.statusLabel}>{label}</p>
-                <Popover.Description className={styles.detail}>{agent.detail}</Popover.Description>
-              </div>
-            </div>
+            {agent.client ? (
+              <>
+                <Popover.Title className={styles.title}>{agent.client}</Popover.Title>
+                <p className={styles.connection}>{connected ? "Connected over MCP on this Mac" : "Not connected"}</p>
+                <div className={styles.rule} />
+                <div className={styles.status}>
+                  <AgentIndicator state={agent.state} />
+                  <div>
+                    <p className={styles.statusLabel}>{label}</p>
+                    <Popover.Description className={styles.detail}>{agent.detail}</Popover.Description>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                <Popover.Title className={styles.title}>{label}</Popover.Title>
+                <Popover.Description className={styles.connection}>{agent.detail}</Popover.Description>
+              </>
+            )}
             {HINTS[agent.state] && <p className={styles.hint}>{HINTS[agent.state]}</p>}
             {!connected && <code className={`${styles.command} selectable`}>kromskop mcp</code>}
           </Popover.Popup>
