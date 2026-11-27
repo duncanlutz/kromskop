@@ -43,12 +43,12 @@
   --surround-assess: #777777;
   --surround-white: #ffffff;
 
-  /* Type. The owner has not chosen a typeface, so it is one token. */
-  --font-ui: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, "Segoe UI", sans-serif;
+  /* Type. IBM Plex Sans, self-hosted; the system font is only a fallback.
+     Plex figures are tabular by default, so columns of numbers align. */
+  --font-ui: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, system-ui, "Segoe UI", sans-serif;
   --font-code: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-  --font-features: normal;
-  --tracking-small: 0;
-  --tracking-title: 0;
+  --tracking-small: 0.005em;
+  --tracking-title: -0.005em;
 
   --size-11: 11px;
   --size-12: 12px;
@@ -99,23 +99,4 @@
   --duration-quick: 120ms;
   --duration-move: 260ms;
   --duration-agent-mark: 2600ms;
-}
-
-/* Typeface options. Switch with data-typeface on the root element. */
-
-:root[data-typeface="plex"] {
-  --font-ui: "IBM Plex Sans", -apple-system, system-ui, sans-serif;
-  /* Plex figures are tabular by default; the open zero has no slash or dot. */
-  --font-features: normal;
-  --tracking-small: 0.005em;
-  --tracking-title: -0.005em;
-}
-
-:root[data-typeface="inter"] {
-  --font-ui: "Inter Variable", -apple-system, system-ui, sans-serif;
-  /* calt keeps Inter's contextual alignment of arrows and separators;
-     ss03 gives round quotes and commas, which read better at 11 px. */
-  --font-features: "calt", "ss03";
-  --tracking-small: 0.003em;
-  --tracking-title: -0.012em;
 }

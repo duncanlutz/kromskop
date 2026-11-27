@@ -1,15 +1,7 @@
 /*
- * Self-hosted typefaces. Both are under the SIL Open Font License 1.1; the
- * licence texts sit beside the files. Nothing is fetched at runtime.
+ * IBM Plex Sans, self-hosted under the SIL Open Font License 1.1. The licence
+ * text sits beside the files. Nothing is fetched at runtime.
  */
-
-@font-face {
-  font-family: "Inter Variable";
-  font-style: normal;
-  font-weight: 100 900;
-  font-display: block;
-  src: url("../fonts/inter/InterVariable.woff2") format("woff2");
-}
 
 @font-face {
   font-family: "IBM Plex Sans";

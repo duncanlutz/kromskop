@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
 
 /** The area around the photo. Its brightness changes how the photo reads. */
 export interface Surround {
@@ -18,20 +18,9 @@ export const SURROUNDS: Surround[] = [
   { id: "white", label: "White", colour: "var(--surround-white)", frame: false },
 ];
 
-/** Offered while the owner chooses; one will stay. */
-export type Typeface = "system" | "plex" | "inter";
-
-export const TYPEFACES: Array<{ id: Typeface; label: string }> = [
-  { id: "system", label: "System (San Francisco)" },
-  { id: "plex", label: "IBM Plex Sans" },
-  { id: "inter", label: "Inter 4" },
-];
-
 interface Prefs {
   surround: Surround;
   setSurround(id: Surround["id"]): void;
-  typeface: Typeface;
-  setTypeface(typeface: Typeface): void;
   histogramChannels: boolean;
   setHistogramChannels(on: boolean): void;
 }
@@ -53,25 +42,16 @@ export function PrefsProvider({ children }: { children: ReactNode }) {
   const [surroundId, setSurround] = useState<Surround["id"]>(() =>
     fromQuery("surround", SURROUNDS.map((s) => s.id), "dark"),
   );
-  const [typeface, setTypeface] = useState<Typeface>(() =>
-    fromQuery("typeface", TYPEFACES.map((t) => t.id), "system"),
-  );
   const [histogramChannels, setHistogramChannels] = useState(false);
-
-  useEffect(() => {
-    document.documentElement.dataset.typeface = typeface;
-  }, [typeface]);
 
   const prefs = useMemo<Prefs>(
     () => ({
       surround: SURROUNDS.find((s) => s.id === surroundId) ?? SURROUNDS[1]!,
       setSurround,
-      typeface,
-      setTypeface,
       histogramChannels,
       setHistogramChannels,
     }),
-    [surroundId, typeface, histogramChannels],
+    [surroundId, histogramChannels],
   );
 
   return <PrefsContext.Provider value={prefs}>{children}</PrefsContext.Provider>;

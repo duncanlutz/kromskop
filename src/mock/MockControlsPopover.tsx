@@ -1,13 +1,12 @@
 /*
  * MOCK ONLY. A reviewer's panel for driving the mock: agent state, a scripted
- * agent edit, typeface, and the page's empty and loading states. Hidden until
+ * agent edit, and the page's empty and loading states. Hidden until
  * M is pressed. It is not part of the product and goes away with the mock.
  */
 
 import { useEffect, useState } from "react";
 import type { AgentState, PageStatus } from "../model/types";
 import { AGENT_STATE_LABELS } from "../shell/AgentIndicator";
-import { TYPEFACES, usePrefs } from "../shell/Prefs";
 import styles from "./MockControlsPopover.module.css";
 import { useMockControls } from "./MockSession";
 
@@ -22,7 +21,6 @@ const PAGES: Array<{ id: PageStatus; label: string }> = [
 
 export function MockControlsPopover() {
   const mock = useMockControls();
-  const { typeface, setTypeface } = usePrefs();
   const [open, setOpen] = useState(() => new URLSearchParams(window.location.search).has("mock"));
 
   useEffect(() => {
@@ -63,7 +61,6 @@ export function MockControlsPopover() {
         </button>
       </div>
 
-      <Choice legend="Typeface" name="mock-typeface" options={TYPEFACES} value={typeface} onChange={setTypeface} />
       <Choice legend="Page state" name="mock-page" options={PAGES} value={mock.page} onChange={mock.setPage} />
     </aside>
   );
