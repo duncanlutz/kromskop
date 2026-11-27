@@ -77,7 +77,7 @@ describe("Escape", () => {
   /** Makes an element report focus as shown or not, as the browser would for keyboard or pointer focus. */
   function withVisibleFocus(element: HTMLElement, visible: boolean) {
     const matches = element.matches.bind(element);
-    element.matches = (selector: string) => (selector === ":focus-visible" ? visible : matches(selector));
+    Object.defineProperty(element, "matches", { value: (selector: string) => (selector === ":focus-visible" ? visible : matches(selector)) });
   }
 
   it("lets go of a control a pointer left focused", () => {
