@@ -41,7 +41,7 @@ export function SliderRow({
   disabled = false,
 }: SliderRowProps) {
   const track = useRef<HTMLDivElement>(null);
-  const drag = useRef<{ startX: number; lastX: number; position: number; moving: boolean } | null>(null);
+  const drag = useRef<{ startX: number; lastX: number; position: number; moving: boolean; startValue: number } | null>(null);
   const [dragging, setDragging] = useState(false);
   const [draft, setDraft] = useState<string | null>(null);
   /** Set when Escape or Return has already dealt with the draft, so the blur that follows does not commit it. */
@@ -93,7 +93,7 @@ export function SliderRow({
     const pressed = (event.clientX - rect.left) / rect.width;
     const onThumb = Math.abs(event.clientX - (rect.left + position * rect.width)) <= GRAB_RADIUS;
     const start = onThumb ? position : Math.min(1, Math.max(0, pressed));
-    drag.current = { startX: event.clientX, lastX: event.clientX, position: start, moving: false };
+    drag.current = { startX: event.clientX, lastX: event.clientX, position: start, moving: false, startValue: value };
     track.current.setPointerCapture(event.pointerId);
     track.current.focus({ preventScroll: true });
   };
@@ -120,6 +120,25 @@ export function SliderRow({
     endGesture();
   };
 
+  // While the pointer is down the drag owns the gesture: only its release or
+  // cancellation ends it. A key coming up (Alt, tapped to slow the drag) or
+  // focus leaving must not cut the gesture in two.
+  const endKeyGesture = () => {
+    if (!drag.current) endGesture();
+  };
+
+  /**
+   * Escape during a drag calls it off: the value goes back to where the
+   * gesture found it and the gesture ends, as one edit that changes nothing.
+   * The pointer may still be down; its later moves are ignored.
+   */
+  const cancelDrag = () => {
+    const held = drag.current;
+    if (!held) return;
+    if (held.moving && held.startValue !== value) onChange(held.startValue);
+    endDrag();
+  };
+
   /* Keys. Arrows step, Shift steps larger. */
 
   const stepBy = (event: KeyboardEvent, direction: 1 | -1) => {
@@ -132,6 +151,15 @@ export function SliderRow({
 
   const onTrackKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (disabled) return;
+    if (drag.current) {
+      // Mid-drag the keyboard does one thing only: Escape cancels the drag.
+      if (event.key === "Escape") {
+        event.preventDefault();
+        event.stopPropagation();
+        cancelDrag();
+      }
+      return;
+    }
     if (TRACK_KEYS.includes(event.key)) startGesture();
     switch (event.key) {
       case "ArrowRight":
@@ -237,8 +265,8 @@ export function SliderRow({
         onPointerUp={endDrag}
         onPointerCancel={endDrag}
         onKeyDown={onTrackKeyDown}
-        onKeyUp={endGesture}
-        onBlur={endGesture}
+        onKeyUp={endKeyGesture}
+        onBlur={endKeyGesture}
         onDoubleClick={reset}
       >
         <span className={styles.rail} />

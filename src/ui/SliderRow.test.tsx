@@ -416,3 +416,90 @@ describe("a drag, with the version rules decided at its end", () => {
     expect(shown()).toBe("p1-a");
   });
 });
+
+describe("a drag that is interrupted from the keyboard", () => {
+  const drag = (...values: number[]) => values.forEach((value) => fireEvent.pointerMove(slider(), { clientX: xOf(value) }));
+  /** B is the person's copy with shadows +10 on a parent that has 0; the drag starts on its thumb. */
+  const start = () => {
+    render(<GestureHarness start="p1-b" param="shadows" />);
+    slider().focus();
+    fireEvent.pointerDown(slider(), { button: 0, clientX: xOf(10) });
+  };
+
+  it("stays one gesture when Alt is tapped mid-drag, through the parent's value and out again", () => {
+    start();
+    drag(6);
+    fireEvent.keyDown(slider(), { key: "Alt", altKey: true });
+    fireEvent.keyUp(slider(), { key: "Alt" });
+    // Across the parent's value: with the gesture cut in two, this would discard B.
+    drag(0);
+    expect(versions()).toBe("original p1-a p1-b");
+    drag(-4, 20);
+    fireEvent.pointerUp(slider(), { clientX: xOf(20) });
+    expect(versions()).toBe("original p1-a p1-b");
+    expect(shown()).toBe("p1-b");
+    expect(slider().getAttribute("aria-valuenow")).toBe("20");
+  });
+
+  it("stays one gesture when focus leaves mid-drag", () => {
+    start();
+    drag(6);
+    fireEvent.blur(slider());
+    drag(0, -4, 20);
+    expect(versions()).toBe("original p1-a p1-b");
+    fireEvent.pointerUp(slider(), { clientX: xOf(20) });
+    expect(versions()).toBe("original p1-a p1-b");
+    expect(shown()).toBe("p1-b");
+    expect(slider().getAttribute("aria-valuenow")).toBe("20");
+  });
+
+  it("is called off by Escape: the value returns to where the drag found it and nothing changes", () => {
+    start();
+    drag(6, 0, -8);
+    fireEvent.keyDown(slider(), { key: "Escape" });
+    expect(slider().getAttribute("aria-valuenow")).toBe("10");
+    expect(versions()).toBe("original p1-a p1-b");
+    expect(shown()).toBe("p1-b");
+    // The pointer is still down: moving it now, even across the parent's value, does nothing.
+    drag(0, 30);
+    fireEvent.pointerUp(slider(), { clientX: xOf(30) });
+    expect(slider().getAttribute("aria-valuenow")).toBe("10");
+    expect(versions()).toBe("original p1-a p1-b");
+  });
+
+  it("makes no version when a drag on an agent's version is called off by Escape", () => {
+    render(<GestureHarness start="p1-a" param="contrast" />);
+    slider().focus();
+    fireEvent.pointerDown(slider(), { button: 0, clientX: xOf(14) });
+    drag(30, 50);
+    fireEvent.keyDown(slider(), { key: "Escape" });
+    drag(60);
+    fireEvent.pointerUp(slider(), { clientX: xOf(60) });
+    expect(versions()).toBe("original p1-a p1-b");
+    expect(shown()).toBe("p1-a");
+    expect(slider().getAttribute("aria-valuenow")).toBe("14");
+  });
+
+  it("announces one start and one end for a drag with Alt tapped and focus lost along the way", () => {
+    const calls: string[] = [];
+    render(
+      <SliderRow def={contrast} value={14} parentValue={0} onChange={() => undefined} onGestureStart={() => calls.push("start")} onGestureEnd={() => calls.push("end")} />,
+    );
+    fireEvent.pointerDown(slider(), { button: 0, clientX: xOf(14) });
+    fireEvent.pointerMove(slider(), { clientX: xOf(20) });
+    fireEvent.keyUp(slider(), { key: "Alt" });
+    fireEvent.blur(slider());
+    fireEvent.pointerMove(slider(), { clientX: xOf(30) });
+    expect(calls).toEqual(["start"]);
+    fireEvent.pointerUp(slider(), { clientX: xOf(30) });
+    expect(calls).toEqual(["start", "end"]);
+  });
+
+  it("does not step with the arrows while a drag is under way", () => {
+    const onChange = vi.fn();
+    render(<SliderRow def={contrast} value={14} parentValue={0} onChange={onChange} />);
+    fireEvent.pointerDown(slider(), { button: 0, clientX: xOf(14) });
+    fireEvent.keyDown(slider(), { key: "ArrowRight" });
+    expect(onChange).not.toHaveBeenCalled();
+  });
+});
