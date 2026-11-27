@@ -7,8 +7,9 @@
  */
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef, useState, type ReactNode } from "react";
-import { normalise, paramDef, type ParamId } from "../model/params";
-import { ORIGINAL_ID, type AgentState, type AgentStatus, type PageStatus, type Photo, type Shoot, type Version } from "../model/types";
+import { clampValue, paramDef, type ParamId } from "../model/params";
+import { ORIGINAL_ID, type AgentState, type AgentStatus, type Author, type PageStatus, type Photo, type Shoot } from "../model/types";
+import { addVersion, changeParam } from "../model/versions";
 import { SessionContext, type Session } from "../session/Session";
 import { mockLook } from "./filter";
 import { countLevels, loadPixels } from "./histogram";
@@ -27,6 +28,8 @@ interface MockState {
   agent: AgentStatus;
   agentTouched: Partial<Record<ParamId, number>>;
   touchCount: number;
+  /** The version the scripted agent is writing, while it is. */
+  agentRun: { photoId: string; versionId: string; name: string; rationale: string } | null;
 }
 
 type Action =
@@ -39,7 +42,8 @@ type Action =
   | { type: "agentState"; state: AgentState; detail?: string }
   | { type: "agentNever" }
   | { type: "agentStart"; name: string; rationale: string }
-  | { type: "agentSet"; versionId: string; photoId: string; id: ParamId; value: number }
+  | { type: "agentSet"; id: ParamId; value: number }
+  | { type: "agentFinish" }
   | { type: "agentSettle"; id: ParamId; count: number };
 
 function agentDetail(state: AgentState, photo: Photo | undefined): string {
@@ -71,11 +75,6 @@ function defaultVersionId(photo: Photo): string {
 
 function shownVersionId(state: MockState, photo: Photo): string {
   return state.shown[photo.id] ?? defaultVersionId(photo);
-}
-
-function nextLetter(photo: Photo): string {
-  const used = photo.versions.filter((v) => v.letter).length;
-  return String.fromCharCode(65 + used);
 }
 
 function updatePhoto(state: MockState, photoId: string, change: (photo: Photo) => Photo): Shoot {
@@ -125,34 +124,16 @@ function reduce(state: MockState, action: Action): MockState {
 
     case "setParam": {
       if (!photo) return state;
-      const current = photo.versions.find((v) => v.id === shownVersionId(state, photo));
-      if (!current || current.params[action.id] === action.value) return state;
-      const params = { ...current.params, [action.id]: action.value };
-
-      // A person's own working copy takes the change directly. (Each change
-      // will be a new snapshot in the engine; one row is enough for the mock.)
-      if (current.author?.kind === "you") {
-        const shoot = updatePhoto(state, photo.id, (p) => ({
-          ...p,
-          versions: p.versions.map((v) => (v.id === current.id ? { ...v, params } : v)),
-        }));
-        return { ...state, shoot };
-      }
-
-      // Anything else is immutable, so the first nudge starts a new version.
-      const letter = nextLetter(photo);
-      const fork: Version = {
-        id: `${photo.id}-${letter.toLowerCase()}`,
-        letter,
-        name: "Adjusted",
-        author: { kind: "you" },
-        rationale: null,
-        parentId: current.id,
-        params,
-        seen: true,
+      // The rules live in model/versions: a change to the original, to the
+      // agent's version, or to anything with versions built on it starts a
+      // new version; only the person's own open working copy takes it directly.
+      const change = changeParam(photo, shownVersionId(state, photo), action.id, action.value, { kind: "you" }, { name: "Adjusted" });
+      if (change.photo === photo) return state;
+      return {
+        ...state,
+        shoot: updatePhoto(state, photo.id, () => change.photo),
+        shown: { ...state.shown, [photo.id]: change.versionId },
       };
-      const shoot = updatePhoto(state, photo.id, (p) => ({ ...p, versions: [...p.versions, fork] }));
-      return { ...state, shoot, shown: { ...state.shown, [photo.id]: fork.id } };
     }
 
     case "agentState":
@@ -166,37 +147,54 @@ function reduce(state: MockState, action: Action): MockState {
 
     case "agentStart": {
       if (!photo) return state;
-      const base = photo.versions.find((v) => v.id === shownVersionId(state, photo));
-      if (!base) return state;
-      const letter = nextLetter(photo);
-      const version: Version = {
-        id: `${photo.id}-${letter.toLowerCase()}`,
-        letter,
-        name: action.name,
-        author: { kind: "agent", client: MOCK_CLIENT },
-        rationale: action.rationale,
-        parentId: base.id,
-        params: base.params,
-        seen: true,
-      };
-      const shoot = updatePhoto(state, photo.id, (p) => ({ ...p, versions: [...p.versions, version] }));
+      const agent: Author = { kind: "agent", client: MOCK_CLIENT };
+      // The person is watching it being made, so it counts as seen.
+      const added = addVersion(photo, shownVersionId(state, photo), agent, { name: action.name, rationale: action.rationale, seen: true });
       return {
         ...state,
-        shoot,
-        shown: { ...state.shown, [photo.id]: version.id },
-        agent: { client: MOCK_CLIENT, state: "working", detail: `Editing ${photo.fileName}, version ${letter}` },
+        shoot: updatePhoto(state, photo.id, () => added.photo),
+        shown: { ...state.shown, [photo.id]: added.version.id },
+        agentRun: { photoId: photo.id, versionId: added.version.id, name: action.name, rationale: action.rationale },
+        agent: { client: MOCK_CLIENT, state: "working", detail: `Editing ${photo.fileName}, version ${added.version.letter}` },
       };
     }
 
     case "agentSet": {
+      const run = state.agentRun;
+      const target = state.shoot.photos.find((p) => p.id === run?.photoId);
+      if (!run || !target) return state;
+      // If the person has built on the version meanwhile, the agent may not
+      // reach into it any more: its next change starts a version of its own.
+      const change = changeParam(
+        target,
+        run.versionId,
+        action.id,
+        action.value,
+        { kind: "agent", client: MOCK_CLIENT },
+        { name: run.name, rationale: run.rationale, seen: false },
+      );
+      const watching = state.photoId === target.id && shownVersionId(state, target) === run.versionId;
       const touchCount = state.touchCount + 1;
-      const shoot = updatePhoto(state, action.photoId, (p) => ({
-        ...p,
-        versions: p.versions.map((v) =>
-          v.id === action.versionId ? { ...v, params: { ...v.params, [action.id]: action.value } } : v,
-        ),
-      }));
-      return { ...state, shoot, touchCount, agentTouched: { ...state.agentTouched, [action.id]: touchCount } };
+      return {
+        ...state,
+        shoot: updatePhoto(state, target.id, () => change.photo),
+        agentRun: { ...run, versionId: change.versionId },
+        // The view follows the agent only while the person is still on its version.
+        shown: watching ? { ...state.shown, [target.id]: change.versionId } : state.shown,
+        touchCount,
+        // A row is marked only where the change can be seen.
+        agentTouched: watching ? { ...state.agentTouched, [action.id]: touchCount } : state.agentTouched,
+      };
+    }
+
+    case "agentFinish": {
+      const run = state.agentRun;
+      const made = state.shoot.photos.find((p) => p.id === run?.photoId)?.versions.find((v) => v.id === run?.versionId);
+      return {
+        ...state,
+        agentRun: null,
+        agent: { client: MOCK_CLIENT, state: "waiting", detail: made ? `Version ${made.letter} is ready to compare` : state.agent.detail },
+      };
     }
 
     case "agentSettle": {
@@ -229,6 +227,7 @@ function initialState(): MockState {
     agent: never ? NO_AGENT_YET : { client: MOCK_CLIENT, state: agentState, detail: agentDetail(agentState, first) },
     agentTouched: {},
     touchCount: 0,
+    agentRun: null,
   };
 }
 
@@ -319,8 +318,6 @@ export function MockSessionProvider({ children }: { children: ReactNode }) {
   const runAgentEdit = useCallback(() => {
     if (agentEditRunning || !photo || !version || state.page !== "ready") return;
     setAgentEditRunning(true);
-    const letter = nextLetter(photo);
-    const versionId = `${photo.id}-${letter.toLowerCase()}`;
     const base = version.params;
     const edits: Array<[ParamId, number]> = [
       ["exposure", base.exposure + 0.3],
@@ -335,13 +332,11 @@ export function MockSessionProvider({ children }: { children: ReactNode }) {
     });
 
     edits.forEach(([id, raw], index) => {
-      const value = normalise(paramDef(id), raw);
-      later(900 + index * 1200, () => {
-        dispatch({ type: "agentSet", photoId: photo.id, versionId, id, value });
-      });
+      const value = clampValue(paramDef(id), raw);
+      later(900 + index * 1200, () => dispatch({ type: "agentSet", id, value }));
     });
     later(900 + edits.length * 1200 + 600, () => {
-      dispatch({ type: "agentState", state: "waiting", detail: `Version ${letter} is ready to compare` });
+      dispatch({ type: "agentFinish" });
       setAgentEditRunning(false);
     });
   }, [agentEditRunning, later, photo, state.page, version]);
