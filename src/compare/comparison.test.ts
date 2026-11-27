@@ -55,6 +55,46 @@ describe("a version arriving", () => {
     expect(letters(comparedVersions(c, after))).toBe("ABCD");
   });
 
+  it("joins as the sixth when five are compared", () => {
+    const before = photo("ABCDE");
+    const after = photo("ABCDEF");
+    const c = reconcile(startComparison(before), after);
+    expect(letters(comparedVersions(c, after))).toBe("ABCDEF");
+    expect(standingOf(c, after, "p-f")).toBe("compared");
+    expect(c.waiting).toEqual([]);
+  });
+
+  it("seats two arriving together when four are compared", () => {
+    const before = photo("ABCD");
+    const after = photo("ABCDEF");
+    const c = reconcile(startComparison(before), after);
+    expect(letters(comparedVersions(c, after))).toBe("ABCDEF");
+    expect(c.waiting).toEqual([]);
+  });
+
+  it("seats the first of two arriving together when five are compared, and has the second wait", () => {
+    const before = photo("ABCDE");
+    const after = photo("ABCDEFG");
+    const c = reconcile(startComparison(before), after);
+    expect(letters(comparedVersions(c, after))).toBe("ABCDEF");
+    expect(c.waiting).toEqual(["p-g"]);
+  });
+
+  it("has both of two arriving together wait when six are compared", () => {
+    const before = photo("ABCDEF");
+    const after = photo("ABCDEFGH");
+    const c = reconcile(startComparison(before), after);
+    expect(letters(comparedVersions(c, after))).toBe("ABCDEF");
+    expect(c.waiting).toEqual(["p-g", "p-h"]);
+  });
+
+  it("counts a place the person freed by dropping", () => {
+    const before = photo("ABCDEF", ["C"]);
+    const after = photo("ABCDEFG", ["C"]);
+    const c = reconcile(startComparison(before), after);
+    expect(letters(comparedVersions(c, after))).toBe("ABDEFG");
+  });
+
   it("waits when six are compared, and displaces nothing", () => {
     const before = photo("ABCDEF");
     const after = photo("ABCDEFG");

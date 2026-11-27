@@ -74,12 +74,19 @@ export function reconcile(comparison: Comparison, photo: Photo): Comparison {
   const gone = comparison.known.some((id) => !ids.includes(id));
   if (arrivals.length === 0 && !gone) return comparison;
 
-  let next: Comparison = { ...comparison, waiting: comparison.waiting.filter((id) => ids.includes(id)), known: ids };
+  const next: Comparison = { ...comparison, waiting: comparison.waiting.filter((id) => ids.includes(id)), known: ids };
+  // Room is counted before the arrivals are seated: an arrival is not yet a
+  // tile, so it must not count against itself. Each one that is seated then
+  // takes a place the next cannot have.
+  const arriving = new Set(arrivals.map((v) => v.id));
+  let seated = comparedVersions(next, photo).filter((v) => !arriving.has(v.id)).length;
+  const waiting = [...next.waiting];
   for (const arrival of arrivals) {
     if (photo.droppedIds.includes(arrival.id)) continue;
-    if (isFull(next, photo)) next = { ...next, waiting: [...next.waiting, arrival.id] };
+    if (seated < MAX_COMPARED) seated += 1;
+    else waiting.push(arrival.id);
   }
-  return next;
+  return { ...next, waiting };
 }
 
 export type AddResult =
